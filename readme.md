@@ -69,10 +69,10 @@ To reproduce the experimental results, follow these steps:
   - `model/mixture_vae.py` – Primary implementation of the Mixture-VAE model.
   - `model/vae_module.py` – Wrapper module for batch fitting and inference.
   
-- **Baseline Models:**
+- **Baseline Models (Wrapped):**
   - `model/hmm_module.py`
   - `model/kmeans_module.py`
-  - `jump_module.py`
+  - `model/jump_module.py`
   
 - **Experiments:**
   - Notebooks for synthetic experiments and baseline comparisons are located under `exp_notebooks/`.
