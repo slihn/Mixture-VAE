@@ -1,16 +1,20 @@
 import os
 import numpy as np
+from datetime import datetime
+from typing import List, Dict, Union, Any, Optional
 from scipy.stats import multivariate_t
 from hmmlearn import hmm
+from gas_impl.gas_sn_dist import GAS_SN
+
 
 def generate_hmm_data(
-    T=100000,
-    D=3,
-    num_states=2,
-    startprob=None,
-    transition_probs=None,
-    emission_dist='gaussian',
-    hmm_params=None,
+    T: int = 100000,
+    D: int = 3,
+    num_states: int = 2,
+    startprob: Optional[np.ndarray] = None,
+    transition_probs: Optional[np.ndarray] = None,
+    emission_dist: str = 'gaussian',
+    hmm_params: Optional[Union[List, Dict]] = None,
     seed=42,
     clip_factor=None,
     chunk_size=1000,
@@ -74,10 +78,12 @@ def generate_hmm_data(
     if startprob is None:
         startprob = np.ones(num_states) / num_states
 
+    assert transition_probs is not None and startprob is not None
+
     # -------------------
     # 1) Generate hidden states S
     # -------------------
-    if emission_dist == 't':
+    if emission_dist in ['t', 'gassn']:
         # Use CategoricalHMM just to generate a state sequence
         model = hmm.CategoricalHMM(n_components=num_states)
         model.startprob_ = startprob
@@ -92,6 +98,7 @@ def generate_hmm_data(
         model.transmat_ = transition_probs
         
         if hmm_params is not None:
+            assert isinstance(hmm_params, dict), "hmm_params should be a dictionary for 'gaussian' emission_dist"
             model.means_ = (hmm_params['means']
                             if hmm_params['means'] is not None
                             else np.random.randn(num_states, D))
@@ -113,13 +120,24 @@ def generate_hmm_data(
     # -------------------
     X = np.zeros((T, D))
 
-    if emission_dist == 't':
+    if emission_dist in ['t', 'gassn']:
         # Prepare distributions
-        t_dists = [
-            multivariate_t(df=params['df'], loc=params['loc'], shape=params['shape'])
-            for params in hmm_params
-        ]
+        assert hmm_params is not None, "hmm_params must be provided for 't' or 'gassn' emission_dist"
+        if emission_dist == 't':
+            dists = [
+                multivariate_t(df=params['df'], loc=params['loc'], shape=params['shape'])
+                for params in hmm_params
+            ]
 
+        elif emission_dist == 'gassn':
+            assert D == 1, "For 'gassn', D must be 1." 
+            dists = [
+                GAS_SN(alpha=params['alpha'], k=params['k'], beta=params['beta'], loc=params['loc'], scale=params['scale'])
+                for params in hmm_params
+            ]
+        else:
+            raise ValueError("Unsupported emission_dist. Choose either 't' or 'gassn'.")
+        
         # For each state, generate exactly the needed number of samples with rejection
         for state in range(num_states):
             n_required = np.sum(S == state)
@@ -128,7 +146,7 @@ def generate_hmm_data(
 
             # If no clip_factor or <= 0, just standard sampling
             if not clip_factor or clip_factor <= 0:
-                samples = t_dists[state].rvs(size=n_required)
+                samples = dists[state].rvs(size=n_required)
                 if D == 1:
                     samples = samples.reshape(-1, 1)
                 X[S == state] = samples
@@ -140,13 +158,16 @@ def generate_hmm_data(
                 if shape_.ndim == 1:
                     lower = loc_ - clip_factor * shape_
                     upper = loc_ + clip_factor * shape_
+                    print(f"Rejection sampling for state {state}: use shape, lower={lower}, upper={upper}")
+                    
                 else:
                     diag_std = np.sqrt(np.diag(shape_))
                     lower = loc_ - clip_factor * diag_std
                     upper = loc_ + clip_factor * diag_std
+                    print(f"Rejection sampling for state {state}: use std, lower={lower}, upper={upper}")
                 
                 X[S == state] = _rejection_sample(
-                    distribution=t_dists[state],
+                    distribution=dists[state],
                     n_samples=n_required,
                     D=D,
                     lower=lower,
@@ -235,9 +256,14 @@ def _rejection_sample(distribution, n_samples, D, lower, upper, chunk_size=1000)
     # Check if distribution is a scipy.stats object or a callable
     is_scipy_dist = hasattr(distribution, 'rvs')
 
+    chunks = 0
     while len(valid_samples) < n_samples:
         # Generate a batch
-        if is_scipy_dist:
+        chunks += 1
+        if chunks <= 20:
+            print(f"{datetime.now()}: Generating batch {chunks} of size {chunk_size} for rejection sampling, len: {len(valid_samples)}, goal: {n_samples}...")
+            # print(valid_samples[:10])
+        if is_scipy_dist or isinstance(distribution, GAS_SN):
             batch = distribution.rvs(size=chunk_size)
         else:
             batch = distribution(chunk_size)
@@ -249,10 +275,12 @@ def _rejection_sample(distribution, n_samples, D, lower, upper, chunk_size=1000)
         # Apply bounds
         mask = np.all((batch >= lower) & (batch <= upper), axis=1)
         valid = batch[mask]
-        valid_samples.append(valid)
+        valid_samples.extend(valid)
 
     # Concatenate and keep only the first n_samples
-    valid_samples = np.concatenate(valid_samples, axis=0)[:n_samples]
+    # valid_samples = np.concatenate(valid_samples, axis=0)[:n_samples]
+    valid_samples = valid_samples[:n_samples]
+    print(f"{datetime.now()}: Generated batch {chunks} of size {chunk_size} for rejection sampling, len: {len(valid_samples)}, goal: {n_samples}...")
     return valid_samples
 
 
