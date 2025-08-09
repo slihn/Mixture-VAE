@@ -1,6 +1,10 @@
-# Mixture-VAE: A Generalized Framework for Financial Regime Identification
+# Mixture-VAE with GAS-SN: An Experimental Framework for Financial Regime Identification
 
-Mixture-VAE is a versatile framework for classification tasks, specifically financial regime identification. This repository provides a python implementation including usage examples and experiment reproductions.
+Mixture-VAE is a versatile framework for classification tasks, specifically financial regime identification. 
+This repository provides a python implementation including usage examples and experiment reproductions.
+
+This is a fork with the addition of [GAS-SN](https://github.com/slihn/gas-impl) such that one can experiment it 
+with a more flexible distribution beyond normal and Student's t.
 
 <!-- ---
 
@@ -40,11 +44,16 @@ To install the required dependencies, run:
 pip install -r requirements.txt
 ```
 
+Then install my gas-impl package.
+
 ---
 
 ## Usage
 - **Example Notebook:**  
-  Explore an end-to-end usage example with the `example_usage.ipynb` notebook.
+  Explore an end-to-end usage example with the `example_usage_gassn.ipynb` notebook.
+  You can toggle the `use_gassn` flag to generate `S, X` via `GAS_SN` instead of `multivariate_t`.
+  Then modify `alpha, k, beta`, `loc, sd`, `chunk_size, clip_factor` to experiment. 
+
 - **Model Implementation:**  
   The key implementation is provided in `model/mixture_vae.py`. For batch fitting and inference, refer to the wrapper in `model/vae_module.py`.
 
@@ -91,6 +100,8 @@ If you use this repository in your research or projects, please cite it as follo
    howpublished = {\url{https://github.com/yuqinie98/Mixture-VAE}},
  }
  ```
+
+If you use my gas-sn distribution, please cite it accordingly. Thank you.
 
 ---
 

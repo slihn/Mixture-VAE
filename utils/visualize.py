@@ -14,7 +14,8 @@ def plot_clusters(data,
                   save_path=None, 
                   dpi=100, 
                   marker_size=1,
-                  legend=True):
+                  legend=True,
+                  figsize=(11, 4.5)):
     """
     General function to visualize clusters.
 
@@ -64,7 +65,7 @@ def plot_clusters(data,
         print("1D plotting")
         plt.rcParams['figure.dpi'] = dpi
         plt.rcParams.update({'font.size': 8})
-        plt.rcParams['figure.figsize'] = (10, 4)
+        plt.rcParams['figure.figsize'] = figsize
         fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True)
         X_1D = data[:, 0]
         
