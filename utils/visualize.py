@@ -61,25 +61,43 @@ def plot_clusters(data,
     # --- New 1D Data Functionality ---
     # If the input data has only one feature, create a density (KDE) plot for each category.
     if data.shape[1] == 1:
+        print("1D plotting")
+        plt.rcParams['figure.dpi'] = dpi
+        plt.rcParams.update({'font.size': 8})
+        plt.rcParams['figure.figsize'] = (10, 4)
+        fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True)
         X_1D = data[:, 0]
-        plt.figure(figsize=(8, 6), dpi=dpi)
-        for label in np.unique(cluster_labels):
-            subset = X_1D[cluster_labels == label]
-            sns.kdeplot(subset, label=f"Category {label}", fill=True, alpha=0.5, linewidth=2)
-        plt.xlabel("Value of Feature")
-        plt.ylabel("Density")
+        
+        def _plot1(ax, y_log=False):
+            for label in np.unique(cluster_labels):
+                subset = X_1D[cluster_labels == label]
+                sns.kdeplot(subset, label=f"Category {label}", fill=True, alpha=0.5, linewidth=2, ax=ax)
+            ax.set_xlabel("Value of Feature")
+            if y_log:
+                ax.set_title("Log Density Plot")
+                ax.set_ylabel("Log Density")
+                ax.set_yscale('log')
+                ax.set_ylim(bottom=1e-3)  # Avoid log(0)
+            else:
+                ax.set_title("Density Plot")
+                ax.set_ylabel("Density")
+            if legend:
+                ax.legend()
+
+        _plot1(ax1)
+        _plot1(ax2, y_log=True)
+
         if title:
-            plt.title(title)
-        if legend:
-            plt.legend()
+            fig.suptitle(title)
         if save_path:
-            plt.savefig(save_path)
+            fig.savefig(save_path)
             plt.close()
         else:
             plt.show()
         return
     # --- End of 1D functionality ---
 
+    print(f"Higher dimensional plotting: {data.shape[1]}D")
     # For 2D or higher-dimensional data, use the original scatter plot code.
     # Use default colors if none provided.
     if colors is None:
