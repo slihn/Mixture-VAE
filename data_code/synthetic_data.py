@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import List, Dict, Union, Any, Optional
 from scipy.stats import multivariate_t
 from hmmlearn import hmm
+
 from gas_impl.gas_sn_dist import GAS_SN
 
 
@@ -68,7 +69,8 @@ def generate_hmm_data(
         X: np.array of shape (T, D)
             Observed data sequence.
     """
-    np.random.seed(seed)
+    if seed is not None:
+        np.random.seed(seed)
 
     # If transition_probs is not provided, generate a random one
     if transition_probs is None:
@@ -176,33 +178,39 @@ def generate_hmm_data(
                 )
 
     elif emission_dist == 'gaussian':
-        means_ = model.means_
-        covs_ = model.covars_
-        
+        means_ = model.means_  # type: ignore
+        covs_ = model.covars_  # type: ignore
+
+        from np.random import multivariate_normal  # type: ignore
+
         for state in range(num_states):
             n_required = np.sum(S == state)
             if n_required == 0:
                 continue
 
+            assert isinstance(means_, np.ndarray) and isinstance(covs_, np.ndarray)
+            
             # If no clip_factor or <= 0, just standard sampling
             if not clip_factor or clip_factor <= 0:
                 # Sample from a normal distribution with means_[state], covs_[state]
                 # We can just use np.random.multivariate_normal for that
-                samples = np.random.multivariate_normal(means_[state], covs_[state], size=n_required)
+                samples = multivariate_normal(means_[state], covs_[state], size=n_required)
                 X[S == state] = samples
             else:
                 # Rejection sampling approach
                 mean_ = means_[state]
-                diag_std = np.sqrt(np.diag(covs_[state]))
-                
+                covs_state = covs_[state]
+                assert isinstance(covs_state, np.ndarray), "covs_[state] should be a numpy array"
+                diag_std = np.sqrt(np.diag(covs_state))
+
                 lower = mean_ - clip_factor * diag_std
                 upper = mean_ + clip_factor * diag_std
 
                 # Create a callable distribution for convenience
                 # We'll do a small helper that samples from MVN.
                 def _gaussian_rvs(size):
-                    return np.random.multivariate_normal(mean_, covs_[state], size=size)
-                
+                    return multivariate_normal(mean_, covs_state, size=size)
+
                 X[S == state] = _rejection_sample(
                     distribution=_gaussian_rvs,
                     n_samples=n_required,
@@ -256,14 +264,17 @@ def _rejection_sample(distribution, n_samples, D, lower, upper, chunk_size=1000)
     # Check if distribution is a scipy.stats object or a callable
     is_scipy_dist = hasattr(distribution, 'rvs')
 
-    chunks = 0
-    while len(valid_samples) < n_samples:
+    count = 0
+    while count < n_samples:
         # Generate a batch
-        chunks += 1
-        if chunks <= 20:
-            print(f"{datetime.now()}: Generating batch {chunks} of size {chunk_size} for rejection sampling, len: {len(valid_samples)}, goal: {n_samples}...")
+        if count <= 20:
+            print(f"{datetime.now()}: Generating batch {count} of size {chunk_size} for rejection sampling, len: {len(valid_samples)}, goal: {n_samples}...")
             # print(valid_samples[:10])
-        if is_scipy_dist or isinstance(distribution, GAS_SN):
+
+        if is_scipy_dist:
+            batch = distribution.rvs(size=chunk_size)
+        elif isinstance(distribution, GAS_SN):
+            assert D == 1, "For 'gassn', D must be 1." 
             batch = distribution.rvs(size=chunk_size)
         else:
             batch = distribution(chunk_size)
@@ -275,12 +286,12 @@ def _rejection_sample(distribution, n_samples, D, lower, upper, chunk_size=1000)
         # Apply bounds
         mask = np.all((batch >= lower) & (batch <= upper), axis=1)
         valid = batch[mask]
-        valid_samples.extend(valid)
+        valid_samples.append(valid)
+        count += valid.shape[0]
 
     # Concatenate and keep only the first n_samples
-    # valid_samples = np.concatenate(valid_samples, axis=0)[:n_samples]
-    valid_samples = valid_samples[:n_samples]
-    print(f"{datetime.now()}: Generated batch {chunks} of size {chunk_size} for rejection sampling, len: {len(valid_samples)}, goal: {n_samples}...")
+    valid_samples = np.concatenate(valid_samples, axis=0)[:n_samples]
+    print(f"{datetime.now()}: Generated batch {count} of size {chunk_size} for rejection sampling, len: {len(valid_samples)}, goal: {n_samples}...")
     return valid_samples
 
 
