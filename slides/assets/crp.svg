@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 300" width="1020" height="300" role="img" aria-label="Chinese restaurant process">
+  <title>Chinese restaurant process</title>
+  <style>
+    .cnt  { font-family: Cambria, Georgia, serif; font-style: italic; font-size: 24px; fill: #121212; }
+    .note { font-family: Roboto, Arial, sans-serif; font-size: 18px; fill: #5a5a5a; }
+    .cap  { font-family: Roboto, Arial, sans-serif; font-size: 19px; fill: #121212; }
+    .tbl  { fill: #FDF1E4; stroke: #E77500; stroke-width: 3; }
+    .new  { fill: #ffffff; stroke: #9a9a9a; stroke-width: 3; stroke-dasharray: 8 6; }
+    .seat { fill: #E77500; }
+    .arr  { stroke: #121212; stroke-width: 2; fill: none; marker-end: url(#a); }
+    .arrn { stroke: #9a9a9a; stroke-width: 2; fill: none; marker-end: url(#g); stroke-dasharray: 7 5; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#121212"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9a9a9a"/></marker>
+  </defs>
+
+  <circle cx="70" cy="150" r="15" fill="#121212"/>
+  <text class="cap" x="70" y="192" text-anchor="middle">next</text>
+  <text class="cap" x="70" y="214" text-anchor="middle">customer</text>
+
+  <circle class="tbl" cx="360" cy="140" r="50"/>
+  <circle class="seat" cx="360" cy="82" r="10"/><circle class="seat" cx="418" cy="140" r="10"/>
+  <circle class="seat" cx="360" cy="198" r="10"/><circle class="seat" cx="302" cy="140" r="10"/>
+  <text class="cnt" x="360" y="149" text-anchor="middle">n₁ = 4</text>
+  <text class="note" x="360" y="232" text-anchor="middle">table 1</text>
+
+  <circle class="tbl" cx="540" cy="140" r="50"/>
+  <circle class="seat" cx="540" cy="82" r="10"/><circle class="seat" cx="598" cy="140" r="10"/>
+  <text class="cnt" x="540" y="149" text-anchor="middle">n₂ = 2</text>
+  <text class="note" x="540" y="232" text-anchor="middle">table 2</text>
+
+  <circle class="tbl" cx="720" cy="140" r="50"/>
+  <circle class="seat" cx="720" cy="82" r="10"/>
+  <text class="cnt" x="720" y="149" text-anchor="middle">n₃ = 1</text>
+  <text class="note" x="720" y="232" text-anchor="middle">table 3</text>
+
+  <circle class="new" cx="920" cy="140" r="50"/>
+  <text class="cnt" x="920" y="151" text-anchor="middle" fill="#9a9a9a">?</text>
+  <text class="note" x="920" y="232" text-anchor="middle">new table</text>
+
+  <!-- join an existing table: arrows arc above -->
+  <path class="arr" d="M 92 138 C 190 78 250 62 314 100"/>
+  <path class="arr" d="M 94 142 C 240 62 420 64 498 98"/>
+  <path class="arr" d="M 96 146 C 300 70 600 66 676 100"/>
+  <!-- open a new table: routed below the captions so nothing is crossed -->
+  <path class="arrn" d="M 92 166 C 260 282 780 288 896 186"/>
+</svg>

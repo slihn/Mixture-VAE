@@ -86,7 +86,10 @@ class GAS_SN_Comparator:
                  stay_prob=0.96, clip_factor=12.0, 
                  chunk_size=1000, seed=42,
                  window_size=500, batch_size=32, train_ratio=0.6, val_ratio=0.2,
-                 vae_lr=1e-3, vae_epochs=500, jump_penalty=100.0,
+                 vae_lr=1e-3, vae_epochs=500,
+                 jump_penalty=100.0, jump_max_iter=100,
+                 kmeans_n_init=10, kmeans_max_iter=300,
+                 hmm_n_iter=100, hmm_covariance_type='full',
                  **vae_params):
         assert D == 1, "GAS_SN emissions are univariate, so D must be 1"
 
@@ -114,6 +117,11 @@ class GAS_SN_Comparator:
         self.vae_lr = vae_lr
         self.vae_epochs = vae_epochs
         self.jump_penalty = jump_penalty
+        self.jump_max_iter = jump_max_iter
+        self.kmeans_n_init = kmeans_n_init
+        self.kmeans_max_iter = kmeans_max_iter
+        self.hmm_n_iter = hmm_n_iter
+        self.hmm_covariance_type = hmm_covariance_type
         self.vae_params_overrides = vae_params
 
         self.S = None
@@ -224,16 +232,17 @@ class GAS_SN_Comparator:
     def fit_jump(self):
         return self._score('jump', JumpModule(self.num_states,
                                               jump_penalty=self.jump_penalty,
-                                              max_iter=100))
+                                              max_iter=self.jump_max_iter))
 
     def fit_kmeans(self):
         return self._score('kmeans', KMeansModule(n_clusters=self.num_states,
-                                                  n_init=10, max_iter=300))
+                                                  n_init=self.kmeans_n_init,
+                                                  max_iter=self.kmeans_max_iter))
 
     def fit_hmm(self):
         return self._score('hmm', GaussianHMMModule(n_components=self.num_states,
-                                                    covariance_type='full',
-                                                    n_iter=100,
+                                                    covariance_type=self.hmm_covariance_type,
+                                                    n_iter=self.hmm_n_iter,
                                                     random_state=self.seed))
 
     def compare(self, models=MODELS, verbose=True):
