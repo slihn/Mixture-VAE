@@ -82,7 +82,7 @@ class GAS_SN_Comparator:
 
     def __init__(self,
                  T=100008, D=1, num_states=2,
-                 alpha=1.1, k=2.75, beta=0.0, loc=0.001, sd=0.003,
+                 alpha=1.1, k=2.75, beta=0.0, loc=0.001, scale=0.003,
                  stay_prob=0.96, clip_factor=12.0, 
                  chunk_size=1000, seed=42,
                  window_size=500, batch_size=32, train_ratio=0.6, val_ratio=0.2,
@@ -102,7 +102,7 @@ class GAS_SN_Comparator:
         self.k = k
         self.beta = beta
         self.loc = loc
-        self.sd = sd
+        self.scale = scale   # the GAS_SN scale parameter, NOT the realized standard deviation
 
         self.stay_prob = stay_prob
         self.clip_factor = clip_factor  # gas-sn tolerates a larger clip factor than t
@@ -150,8 +150,8 @@ class GAS_SN_Comparator:
         signs = np.linspace(-1.0, 1.0, self.num_states)
         return [
             {'alpha': self.alpha, 'k': self.k, 'beta': self.beta,
-             'loc': sign * self.loc, 'scale': self.sd,
-             'shape': np.eye(self.D) * self.sd ** 2}
+             'loc': sign * self.loc, 'scale': self.scale,
+             'shape': np.eye(self.D) * self.scale ** 2}
             for sign in signs
         ]
 

@@ -98,33 +98,34 @@ style: |
 
 ## From the Chinese Restaurant to Synthetic Regime Data
 
-**Two "elements" generate the fractional distributions that we can train regime models on**
+**Two foundational elements in stochastic theory**
+**The fractional distributions that we can train regime models on**
 
 ## Stephen Lihn (2026)
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/gas-impl`</span>
 
-### ![w:70](assets/tiger.svg) v19
+### ![w:70](assets/tiger.svg) v24
 
 ---
 
 ## The challenge
 
-Financial time series is not long enough for machine learning models.
+Financial time series is often not long enough for machine learning models.
 We need to use **synthetic** data for pre-training.
 
-Challenge of the data generator:
+Challenge of the existing data generator:
 
 - Gaussian emissions make the problem **too easy** — every model wins.
 - Student-$t$ gives fat tails, but only **one** knob (df) and **no skew**.
-- When tails are **too fat**, we need to clip the tails.
+- When tails are **too fat**, we need to clip the tails (clip_factor).
 
 
 ---
 
 ## Why this talk
 
-The fractional distribution is a reparameterized **tilted stable law** $T_{\alpha,\beta}^{-\gamma}$ — 
+The fractional distribution is a reparameterized three-parameter **tilted stable law** $T_{\alpha,\beta}^{-\gamma}$ — 
 The law arises as the $\alpha$-diversity limit of the Pitman–Yor process. So the random variate and its PDF rest on a **solid stochastic process**, not on a convenient functional form: the tails, the moments and the sampler are all consequences of that one object.
 
 
@@ -140,51 +141,50 @@ We benchmark regime-detection models — Mixture-VAE, Jump, KMeans++, Gaussian-H
 
 ## Roadmap
 
-1. The **tilted stable law** $T_{\alpha,\beta}$ and its Pitman–Yor origin — §1.2
-2. The **inverse tilted stable law** $T_{\alpha,\beta}^{-\gamma}$: one element, eight distributions
-3. The **fractional gamma**, and why it *is* the inverse tilted stable law — Ch. 6
+1. The **two-parameter tilted stable law** $T_{\alpha,\beta}$ and its Pitman–Yor origin — §1.2
+2. The **three-parameter tilted stable law** $T_{\alpha,\beta}^{-\gamma}$: one element, eight distributions
+3. The **fractional gamma**, and why it *is* the tilted stable law — Ch. 6
 4. **Kanter's method**: how we actually sample it — Lemma 6.2
-5. **Fractional Chi** → **GAS-SN**: the second element is Selective Sampling — Ch. 7, 12
+5. **GAS-SN**: the selective sampling is the second element — Ch. 7, 12
 6. From random variates to **synthetic regime data**: `generate_hmm_data` → `GAS_SN_Comparator`
-7. **Regime-detection** results, and what the tails do to classical models
+7. **Regime-detection** pre-training results, and what the tails do to classical models
 
 ---
 
-## The element: the tilted stable law
+## The two-parameter tilted stable law
 
-> "The most fundamental and elegant representation is based on the **Tilted Stable law (TS)**."
-
-It arose from Pitman & Yor's study of the **Poisson–Dirichlet** distribution.
+It arose from Pitman & Yor's study of the **Poisson–Dirichlet** distribution. 
 
 $$T^{-\alpha}_{\alpha,\beta} = \left(T_{\alpha,\beta}\right)^{-\alpha}$$
 
 - $\alpha \in [0,1]$ — the **stability index**
 - $\beta \ge 0$ — the power of the **polynomial tilt**
-- $L_\alpha := T_{\alpha,0}$ — the stable law with no tilt
+- $L_\alpha := T_{\alpha,0}$ — the stable law with no tilt, often characterized by the Laplace transform:
 
-The polynomial tilt $\beta$ in the density:
+$$\mathbb{E}\left[e^{-t L_\alpha}\right] = e^{-t^{\alpha}}, \qquad t \ge 0.$$
 
-$$f_{T_{\alpha,\beta}}(x) \;\propto\; x^{-\beta} L_\alpha(x), \qquad x>0$$
+The polynomial tilt $\beta$ is added to the density $L_\alpha(x)$ of $L_\alpha$ as
 
-where $L_\alpha(x)$ is the one-sided stable density.
+$$f_{T_{\alpha,\beta}}(x) \;\propto\; x^{-\beta} L_\alpha(x), \qquad x>0.$$
+
 
 ---
 
-## Where it comes from
+## Where it comes from - the single-parameter model
 
 ### The Chinese restaurant process (CRP), one customer at a time
 
-$K_n$ tables occupied after $n$ customers; $n_j$ customers already at table $j$:
+Given $\alpha \in [0,1]$, $K_n$ tables occupied after $n$ customers; $n_j$ customers already at table $j$:
 
-- Choose a large table to join? $\Pr(\text{join table } j) =$ $\displaystyle \frac{n_j - \alpha}{\beta + n}$ $\longrightarrow$ Preferential attachment
-
-- Open a new table? $\Pr(\text{new table} \mid K_n) =$ $\displaystyle \frac{\beta + \alpha K_n}{\beta + n}$ $\longrightarrow$ Diversity
+- Choose a large table to join? $\Pr(\text{join table } j) = (n_j - \alpha) / n$ $\longrightarrow$ Preferential attachment.
+- Open a new table? $\Pr(\text{new table} \mid K_n) = \alpha K_n / n$ $\longrightarrow$ Diversity, creativity (or anti-social).
+- The **$\alpha$-diversity limit** is $\frac{K_n}{n^{\alpha}} \longrightarrow M_{\alpha} := L^{-\alpha}_{\alpha}$ (the inverse stable law)
 
 ![w:1000](assets/crp.svg)
 
 ---
 
-## CRP is one representation of the Pitman-Yor process
+## The two-parameter Pitman-Yor process in CRP representation
 
 $K_n$ tables occupied after $n$ customers; $n_j$ customers already at table $j$:
 
@@ -198,13 +198,14 @@ The **$\alpha$-diversity limit** is:
 
 $$\frac{K_n}{n^{\alpha}} \longrightarrow T^{-\alpha}_{\alpha,\beta}$$
 
+(Combinatorial Stochastic Processes, Pitman, 2002)
 
 ---
 
 
-## Three parameter tilted stable law: $\mathrm{TS}(\alpha,\beta,\gamma)$
+## The three-parameter tilted stable law: $\mathrm{TS}(\alpha,\beta,\gamma)$
 
-The superscript (exponent) is generalized to $T^{-\gamma}_{\alpha,\beta}$ with $\gamma \in \mathbb{R}$:
+The superscript (exponent) is generalized to $T^{-\gamma}_{\alpha,\beta}$ with $\gamma \in \mathbb{R}$ in Devroye (2009):
 
 $$\mathrm{TS}(\alpha, \beta, \gamma) \;:=\; T^{-\gamma}_{\alpha,\beta} = (T_{\alpha,\beta})^{-\gamma}$$
 
@@ -216,14 +217,14 @@ The **bridge** to the fractional distribution -
 
 ---
 
-## Table 1 — One element, eight distributions
+## One foundational element, eight one-sided distributions
 
-> "$T_{\alpha,\beta}^{-\gamma}$ is the **element** that builds all one-sided distributions."
+### $T_{\alpha,\beta}^{-\gamma}$ is the foundational **element** that builds all one-sided distributions.
 
 
 | Fractional distribution | §     | Notation | $\alpha$ | $\beta$ | $\gamma$ | scale |
 |---|---|---|---|---|---|---|
-| One-sided stable | 4.2 | $L_\alpha$ (aka $T_\alpha$) | $\alpha$ | 0 | $-1$ | 1 |
+| One-sided stable | 4.2 | $L_\alpha$ (aka $T_\alpha,0$) | $\alpha$ | 0 | $-1$ | 1 |
 | M-Wright / Mittag-Leffler | 3.4 | $M_\alpha$ | $\alpha$ | 0 | $\alpha$ | 1 |
 | **Fractional gamma** | 6.5 | $N_\alpha(\sigma,d,p)$ | $\alpha$ | $\alpha d/p$ | $\alpha/p$ | $\sigma$ |
 | **Fractional chi (FCM)** | 7.2.1 | $\chi_{\alpha,k}$, $k>0$ | $\alpha/2$ | $(k{-}1)/2$ | $1/2$ | $\sigma_{\alpha,k}$ |
@@ -233,28 +234,28 @@ The **bridge** to the fractional distribution -
 | Characteristic FCM2 | 7.5.1 | $\chi^2_{\alpha,-k}$ | $\alpha/2$ | $k/2$ | $-1$ | $\sigma^{-2}_{\alpha,k}$ |
 
 
-* Notice the last line - $\chi^2_{\alpha,-k} =$ $1/T_{\alpha/2,k/2}$. It is just inverse of a two-parameter tilted stable law.
+* In the last line: $\chi^2_{\alpha,-k}$ is inverse of $T_{\alpha/2,k/2}$. The reparametrization is most obvious here.
 
 ---
 
-## Ch. 6 — FG: the fractional gamma
+## FG: The fractional gamma — Overview (Ch. 6)
 
 $$N_\alpha(x;\sigma,d,p) \;:=\; C\left(\frac{x}{\sigma}\right)^{d-1} F_\alpha\!\left(\left(\frac{x}{\sigma}\right)^{p}\right), \qquad x \ge 0$$
 
-where $F_\alpha(x) = W_{-\alpha,0}(-x) = \alpha x M_\alpha(x)$ is the Wright function of the second kind.
+where $F_\alpha(x) := W_{-\alpha,0}(-x) = \alpha x M_\alpha(x)$ is the Wright function of the second kind.
 
 - $\alpha \in [0,1]$ — shape of the Wright function
 - $\sigma$ — scale; $p$ — tail shape ($p \neq 0$, $dp \ge 0$); $d$ — degrees of freedom
 
-$$C = \frac{|p|}{\sigma}\,\frac{\Gamma(\alpha d/p)}{\Gamma(d/p)} \quad (\alpha \neq 0,\, d \neq 0)$$
+**FG is the fractional extension of the generalized gamma** $\text{GG}(a,d,p)$: replacing $e^{-(x/a)^p}$ by the Wright function $F_\alpha((x/\sigma)^p)$. GG is recovered at $\alpha = 0$, and — more usefully — at $\alpha = \tfrac12$, which is the line that "leads to the fractional extension of the $\chi$ distribution."
 
-**FG is the fractional extension of the generalized gamma (GG)**: replacing $e^{-(x/a)^p}$ by the Wright function $F_\alpha$. GG is recovered at $\alpha = 0$, and — more usefully — at $\alpha = \tfrac12$, which is the line that "leads to the fractional extension of the $\chi$ distribution."
+$$C = \frac{|p|}{\sigma}\,\frac{\Gamma(\alpha d/p)}{\Gamma(d/p)} \quad (\alpha \neq 0,\, d \neq 0)$$
 
 ---
 
-## §6.5 — FG *is* the inverse tilted stable law
+## FG *is* the tilted stable law (§6.5)
 
-> "We will show that the FG random variable is **exactly the re-parametrized inverse tilted stable variable**."
+### The FG random variable is exactly the re-parametrized tilted stable variable.
 
 Let $X \sim N_\alpha(\sigma,d,p)$. Then
 
@@ -266,7 +267,7 @@ This is the most important finding of the work. Everything downstream — FCM, F
 
 ---
 
-## Lemma 6.2 — Sampling by modified Kanter's method
+## Sampling by modified Kanter's method (Lemma 6.2)
 
 $$T_{\alpha,\beta} = A_\alpha(Q_\beta)\, G_\beta^{-c}, \qquad c = \frac{1-\alpha}{\alpha}$$
 
@@ -280,11 +281,11 @@ Then the inverse variable $U$, and the FG variable $X$, are
 
 $$U = T^{-\alpha}_{\alpha,\beta} = A_\alpha(Q_\beta)^{-\alpha}\, G_\beta^{\,1-\alpha}, \qquad X = \sigma\, U^{1/p}$$
 
-**Two draws and a closed-form transform. No numerical CDF inversion.**
+**Two draws and a closed-form transform. No numerical CDF inversion. Fast.**
 
 ---
 
-## Ch. 7 — FCM: The fractional $\chi$-mean
+## FCM: The fractional $\chi$-mean (Ch. 7)
 
 $$\chi_{\alpha,k}(x) := N_{\alpha/2}\big(x;\ \sigma = \sigma_{\alpha,k},\ d = k-1,\ p = \alpha\big), \qquad
 \sigma_{\alpha,k} = \frac{|k|^{1/2 - 1/\alpha}}{\sqrt{2}}$$
@@ -299,26 +300,28 @@ Note $\alpha \in (0,2)$ here, while the element $T$ needs $\alpha \in (0,1)$ —
 
 ---
 
-## The second element: Selective Sampling
+## The second element: selective sampling
 
 One-sided elements give tails. **Skewness needs a second mechanism** (§1.2, §14.4).
 
-Take $X_0 \sim N_d(0,\bar\Omega)$, $X_1 \sim N(0,1)$, skew parameter $\beta \in \mathbb{R}^d$:
+Take $X_0 \sim N_d(0,\bar\Omega)$, $X_1 \sim N(0,1)$, skew parameter $\beta \in \mathbb{R}^d$. The skew-normal (SN) variable is
 
 $$Z = \begin{cases} X_0 & \text{if } X_1 > \beta^{\intercal} X_0 \\[2pt] -X_0 & \text{otherwise} \end{cases}
 \qquad\Longrightarrow\qquad Z \sim SN_d(0,\bar\Omega,\beta)$$
 
-A two-sided distribution is then assembled as a **ratio** $Z / \mathrm{TS}(\cdot)$ or a **product** $Z \times \mathrm{TS}(\cdot)$.
+A two-sided distribution is assembled as a **ratio** $Z / \mathrm{TS}(\cdot)$ or a **product** $Z \times \mathrm{TS}(\cdot)$.
 
-> "The crown jewel is the skew multivariate elliptical distribution, based on the ratio $SN_d(0,\bar\Omega,\beta)/\chi_{\alpha,k}$."
+The **crown jewel** is the skew multivariate elliptical distribution, based on the ratio
+
+$$SN_d(0,\bar\Omega,\beta)/\chi_{\alpha,k}.$$
 
 ---
 
-## Ch. 12 — GAS-SN
+## GAS-SN: the univariate two-sided skew distribution (Ch. 12)
 
-**Definition 12.1.** Let $Z_0 \sim SN(0,1,\beta)$ and $V \sim \chi_{\alpha,k}$. Then
+Definition 12.1: Let $Z \sim SN(0,1,\beta)$ and $V \sim \chi_{\alpha,k}$. Then
 
-$$\boxed{\;Z = Z_0 / V \;\sim\; L_{\alpha,k}(\beta)\;}$$
+$$\boxed{\;X = Z / V \;\sim\; L_{\alpha,k}(\beta)\;}$$
 
 $$L_{\alpha,k}(x;\beta) = 2\int_0^\infty \mathcal{N}(xs)\,\Phi_{\mathcal N}(\beta x s)\,\chi_{\alpha,k}(s)\, s\,ds$$
 
@@ -330,28 +333,30 @@ What it subsumes:
 |---|---|
 | $\beta = 0$ | GSaS $L_{\alpha,k}$ — the symmetric case |
 | $\alpha = 1$ | Azzalini's **skew-$t$**: $T(\beta,k) = L_{1,k}(\beta)$ |
-| $\alpha \to 2$ or $k \to \infty$ | the normal distribution |
+| $\alpha \to 2$ or $k \to \infty$ | the normal distribution $\mathcal{N}(0,1)$ |
 
 $\alpha$ and $k$ control the tail **independently** — that is the modelling gain over Student-$t$.
 
 ---
 
-## The full sampling chain, in code
+## The full sampling chain in GAS-SN
+
+The python library is built according to the structure laid out above:
 
 ```
 GAS_SN(alpha, k, beta, loc, scale).rvs(size)
    └─ GAS_SN_Std._rvs:      z0 = SN_Std(beta)._rvs(size)      # selective sampling
-                            v  = fcm.rvs(size)                # the element
+                            v  = fcm.rvs(size)                # the one-sided element
                             return z0 / v                     # Definition 12.1
-        └─ frac_chi_mean(alpha, k)  ->  frac_gamma(alpha/2, sigma_ak, k-1, alpha)
-             └─ fractional_gamma_gen._rvs  ->  kanter_rvs
+
+        └─ fcm = frac_chi_mean(alpha, k)  ->  frac_gamma(alpha/2, sigma_ak, k-1, alpha)
+
+             └─ fractional_gamma_gen._rvs  ->  kanter_rvs     # Kanter's method in Devroye (2009)
+
                   └─ get_tilted_stable3(alpha, beta=alpha*d/p, gamma=alpha/p)
                        └─ TitledStable3.rvs:   exp( c*gamma*log(E) - gamma*log A_alpha(Q) )
 ```
 
-Each arrow is a line from the book: Def. 12.1 → (7.4) → (6.7) → Lemma 6.2.
-
-The `scipy.stats` `rv_continuous` machinery is **bypassed** for sampling — `_rvs` is overridden so we never touch the generic CDF-inversion path (`legacy_rvs`, kept only for reference, is "very slow").
 
 ---
 
@@ -366,25 +371,48 @@ For $\alpha = 1.1$, $k = 2.75$ — the parameters used in the benchmark:
 | $\mathbb{E}[X^{-1}]$ | 1.462901 | 1.466850 |
 
 - 200,000 Kanter draws in **0.05 s**
-- One-sample KS against the analytic FCM CDF ($n=400$): $D = 0.0252$, $p = 0.956$
 - **100,008 GAS-SN draws in 0.06 s**
 
-That last number is the one that matters operationally: the generator is *not* the bottleneck in the benchmark — a 500-epoch VAE fit is.
+The `rvs` generator is *not* the bottleneck in the benchmark anymore.
+KMeans++ and Jump models are fast. But a 500-epoch VAE fit is slow.
 
 ---
 
-## From variates to a *series*
+## From variates to to synthetic regime data
+
+Enhance Yuqi's Mixture-VAE code base:
 
 `data_code/synthetic_data.py :: generate_hmm_data(emission_dist='gassn')`
 
 1. **State path.** An `hmmlearn` `CategoricalHMM` with `emissionprob_ = I` emits the hidden path $\{S_t\}$ directly — transition matrix `[[0.96, 0.04], [0.04, 0.96]]`, so regimes persist ~25 days.
-2. **Emissions.** One `GAS_SN(alpha, k, beta, loc, scale)` per state, straddling zero at $\pm\text{loc}$.
-3. **Draw per state.** For each state, draw exactly $\#\{t : S_t = j\}$ values — vectorized, in chunks.
-4. **Clip by rejection.** Samples outside $\pm\,$`clip_factor`$\,\times$ sd are rejected and redrawn.
+2. **Emissions.** One `GAS_SN(alpha, k, beta, loc, scale=0.003)` per state, straddling zero at $\pm\text{loc}$.
+3. The emissions are **i.i.d. within a state** with Kanter's method.
+4. **Draw per state.** For each state, draw exactly $\#\{t : S_t = j\}$ values — vectorized, in chunks.
+5. **Clip by rejection.** Samples outside $\text{loc} \pm$ `clip_factor` $\times$ **scale** are rejected and redrawn.
 
-**On `clip_factor`:** GAS-SN tails are heavy enough that unclipped draws would dominate the sample variance and make the "regimes" trivially separable by magnitude alone. We use `clip_factor=12.0` — much wider than the `10.0` used for Student-$t$, because these tails are better behaved in the body.
+**Why clip at all:** The tails could be heavy enough that unclipped draws would dominate the sample variance. Yuqi used `clip_factor=10.0` for Student-$t$.
 
-> The emissions are **i.i.d. within a state** — a deliberate simplification. The fractional Feller square-root process (Ch. 13) would generate $\{S_t\}$ as a *path* instead, adding volatility clustering.
+---
+
+## What `clip_factor` actually clips
+
+The bound comes from the emission `shape` matrix, in `generate_hmm_data`:
+
+```python
+diag_std = np.sqrt(np.diag(shape_))          # shape = I * scale**2  =>  = scale
+lower, upper = loc - clip_factor * diag_std, loc + clip_factor * diag_std
+```
+
+`diag_std` is inherited from the **Gaussian** branch, where `shape` is a covariance matrix and $\sqrt{\mathrm{diag}}$ really is the std. For $t$ and GAS-SN it is a **scale** matrix. Given `clip_factor=12.0`, the bound is $\pm 12 \times 0.003 = \pm 0.036$ in **scale** units.
+
+**A fixed `clip_factor` is not a fixed amount of clipping** — std / scale depends on $(\alpha, k)$:
+
+| $k$ (at $\alpha=1.1$) | 1.5 | 2.0 | 2.75 | 4.0 | 6.0 |
+|---|---|---|---|---|---|
+| std / scale | 2.15 | 1.87 | 1.62 | 1.42 | 1.27 |
+| $12\times$scale, measured in **std** | **5.6** | 6.4 | 7.4 | 8.4 | **9.4** |
+
+Sweeping $k$ thins the tails **and** loosens the clip (5.6 $\to$ 9.4 std). Both push toward Gaussian: the two are **confounded**.
 
 ---
 
@@ -396,7 +424,7 @@ That last number is the one that matters operationally: the generator is *not* t
 cmp = GAS_SN_Comparator(
     T=100008, D=1, num_states=2, stay_prob=0.96,
     alpha=1.1, k=2.75, beta=0.0,      # the GAS-SN knobs
-    loc=0.001, sd=0.003, clip_factor=12.0,
+    loc=0.001, scale=0.003, clip_factor=12.0,
     window_size=500, batch_size=32, vae_epochs=500,
 )
 cmp.stats()      # moments, overall and per state
@@ -409,9 +437,10 @@ $D = 1$ is enforced: the GAS-SN emission path is univariate.
 
 ---
 
-## What the generated data looks like
+## What the generated data looks like in the benchmark
 
-$T = 100{,}008$, two states at $\mp 0.001$ with sd $0.003$:
+$T = 100{,}008$, two states at $\mp 0.001$ with scale $0.003$.
+$\alpha = 1.1$, $k = 2.75$, $\beta = -0.1$, clip $= 12$.
 
 | | $n$ | mean | sd | skew | kurtosis |
 |---|---|---|---|---|---|
@@ -419,15 +448,15 @@ $T = 100{,}008$, two states at $\mp 0.001$ with sd $0.003$:
 | state 0 | 49,428 | $-0.000997$ | 0.004924 | 0.058 | 5.79 |
 | state 1 | 50,580 | 0.001021 | 0.004947 | 0.070 | 5.77 |
 
-- Excess kurtosis **5.3** — and that is *after* clipping at $12\sigma$. The unclipped law has far heavier tails.
-- Skew $\approx 0.06$ because we set $\beta = 0$; the residual is sampling noise.
-- The regime signal is a **mean shift of $\pm 0.001$ against a sd of $0.005$** — a signal-to-noise ratio of 0.2. This is deliberately hard.
+- Excess kurtosis **5.3** — *after* clipping at $12 \times$ scale $= 0.036$, which is $\approx 7$ **std**, because the heavy tails lift the std to 0.005 from a scale of 0.003. The unclipped law has far heavier tails.
+- Skew $\approx 0.06$ because we set $\beta = 0.1$; the residual is sampling noise.
+- The regime signal is a **mean shift of $\pm 0.001$ against a std of $0.005$** — a signal-to-noise ratio of 0.2. This is deliberately hard.
 
 ---
 
 ## Results at the benchmark's operating point
 
-$\alpha = 1.1$, $k = 2.75$, $\beta = -0.1$, clip $= 12$ — balanced accuracy on the held-out test split:
+Balanced accuracy on the held-out test split:
 
 | Model | Balanced accuracy | |
 |---|---|---|
@@ -442,17 +471,18 @@ Outcomes are **bimodal** — roughly 0.52 or 0.69 — so every number is a mean 
 
 ---
 
-## Mixture-VAE — robust, but capped
+## Mixture-VAE — robust, but accuracy capped
 
 | $k$ | 1.5 | 2.0 | 2.5 | 2.75 | 3.0 | 4.0 | 5.0 | 6.0 |
 |---|---|---|---|---|---|---|---|---|
-| mean | 0.608 | 0.602 | 0.669 | **0.680** | 0.661 | 0.695 | 0.691 | 0.699 |
-| $p(>0.6)$ | 0.75 | 0.50 | 1.00 | 1.00 | 0.83 | 1.00 | 1.00 | 1.00 |
+| accuracy mean | 0.608 | 0.602 | 0.669 | **0.680** | 0.667 | 0.695 | 0.691 | 0.699 |
+| $p(>0.6)$ | 0.75 | 0.50 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
 
+- Balanced accuracy: **Ceiling ~0.70** however favourable the data.
 - **No cliff on any axis.** It sustains high-60s for $k \ge 2.5$; below that it *degrades* to ~0.60 rather than collapsing — still far above the 0.52 the baselines give there.
-- $\alpha$ **flat** across **0.7–1.6** — a five-fold range of tail weight (kurtosis 10.4 → 2.0) with no trend. `clip_factor` makes **no difference at all**.
-- **Ceiling ~0.70** however favourable the data.
-- Noisiest of the four: across 64 fits, mean 0.652, sd 0.049, range 0.514–0.713. It adds its *own* unseeded randomness — weight init and shuffling — on top of the unseeded data.
+- $\alpha$ **flat** across **0.7–1.6** — a five-fold range of tail weight (kurtosis 10.4 → 2.0) with no trend. 
+- `clip_factor` makes **no difference at all**.
+- Noisiest of the four: its outcomes are usually 0.66–0.70 but with an occasional **~0.58 draw**, scattered across $k$ and $\alpha$ rather than localised. It adds its *own* unseeded randomness — weight init and shuffling — on top of the unseeded data.
 
 ---
 
@@ -460,7 +490,7 @@ Outcomes are **bimodal** — roughly 0.52 or 0.69 — so every number is a mean 
 
 | $k$ | 1.5 | 2.0 | 2.75 | 4.0 | 6.0 |
 |---|---|---|---|---|---|
-| mean | 0.522 | 0.520 | 0.507 | **0.717** | **0.730** |
+| accuracy mean | 0.522 | 0.520 | 0.507 | **0.717** | **0.730** |
 
 - **Above $k = 4$ it is the strongest model of the four** — 0.730 at $k=6$, sd 0.003, versus the VAE's 0.699.
 - Wants the tails **cut**: clip $8 \to 0.700$, $10 \to 0.632$, $12 \to 0.509$, $14 \to 0.505$. A cliff between 10 and 12.
@@ -475,11 +505,13 @@ Outcomes are **bimodal** — roughly 0.52 or 0.69 — so every number is a mean 
 
 | $k$ | 1.5 | 2.0 | 2.75 | 4.0 | 6.0 |
 |---|---|---|---|---|---|
-| mean | 0.519 | 0.522 | 0.578 | 0.705 | 0.721 |
+| accuracy mean | 0.519 | 0.522 | 0.578 | 0.705 | 0.721 |
+
+"$k$ is the dominant knob" is a property of the 15-feature pipeline, not of the data.
 
 It splits on **`cstd_6`**, a volatility feature whose regime separation is $\approx -0.005$ — instead of the rolling means, whose separation is $0.83$. The two axes are within **3%** of each other as binary splits (0.63–0.65 variance explained), so the winner flips run to run.
 
-$$\textbf{Restricted to the six mean features: } p = 1.00 \textbf{ at every setting, down to } \alpha=0.9,\; k=1.5$$
+$$\textbf{Restricted to the six mean features: } p(\text{bac} > 0.6) = 1.00 \textbf{ at every setting, down to } \alpha=0.9,\; k=1.5$$
 
 The signal was never lost — the unweighted Euclidean metric picked the wrong axis. $\alpha$ flips it at ~1.1–1.2, and clip must be $\ge 16$: the **opposite** of what Jump needs.
 
