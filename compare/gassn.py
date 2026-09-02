@@ -1,5 +1,7 @@
 """Compare clustering models on synthetic GAS-SN regime data, scored by balanced accuracy."""
 
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 import torch
@@ -80,6 +82,7 @@ class GAS_SN_Comparator:
         cmp.compare()               # -> DataFrame of balanced accuracy per model
     """
     MODELS = ('vae', 'jump', 'kmeans', 'hmm')
+    MAD_SCALE = 1.4826  # 1 / norm.ppf(0.75): makes MAD a consistent estimate of sigma
 
     def __init__(self,
                  T=100008, D=1, num_states=2,
@@ -127,8 +130,8 @@ class GAS_SN_Comparator:
         self.hmm_covariance_type = hmm_covariance_type
         self.vae_params_overrides = vae_params
 
-        self.S = None
-        self.X = None
+        self.S: Optional[np.ndarray] = None
+        self.X: Optional[np.ndarray] = None
         self.train_loader = None
         self.val_loader = None
         self.test_loader = None
@@ -160,7 +163,7 @@ class GAS_SN_Comparator:
 
     def generate(self):
         """Sample the hidden states S and observations X."""
-        self.S, self.X = generate_hmm_data(
+        S, X = generate_hmm_data(
             T=self.T,
             D=self.D,
             num_states=self.num_states,
@@ -172,15 +175,37 @@ class GAS_SN_Comparator:
             clip_factor=self.clip_factor,
             chunk_size=self.chunk_size,
         )
+        self.S, self.X = S, X
+        return S, X
+
+    def data(self):
+        """S and X, generated on first use."""
+        if self.S is None or self.X is None:
+            return self.generate()
         return self.S, self.X
+
+    def cluster_distance(self) -> float:
+        """Separation of the state medians in robust-sigma units of the pooled sample:
+
+            (median_1 - median_0) / MAD,   MAD = 1.4826 * median(|x - median(x)|)
+
+        This is what the jump model needs to see: it clusters on levels, so the medians
+        of the states have to stand apart relative to the spread they sit in. MAD is used
+        rather than the standard deviation because the GAS-SN tails inflate the latter.
+        With more than two states, the outermost states are compared.
+        """
+        S, X = self.data()
+        x = np.ravel(X)
+        states = np.unique(S)
+        medians = [np.median(x[S == state]) for state in (states[0], states[-1])]
+        mad = self.MAD_SCALE * np.median(np.abs(x - np.median(x)))
+        return float((medians[1] - medians[0]) / mad)
 
     def stats(self):
         """Moments overall and per state -- kurtosis is damped by clip_factor."""
-        if self.X is None:
-            self.generate()
-
-        rows = [('all', self.X)]
-        rows += [(state, self.X[self.S == state]) for state in np.unique(self.S)]
+        S, X = self.data()
+        rows = [('all', X)]
+        rows += [(state, X[S == state]) for state in np.unique(S)]
         return pd.DataFrame(
             [{'state': name,
               'n': len(x),
@@ -193,15 +218,14 @@ class GAS_SN_Comparator:
 
     def dataloaders(self):
         if self.train_loader is None:
-            if self.X is None:
-                self.generate()
+            S, X = self.data()
             # A seeded generator pins the train loader's shuffle permutation. Seeding torch's
             # global RNG is not sufficient: RandomSampler redraws on every iteration.
             generator = None
             if self.seed is not None:
                 generator = torch.Generator().manual_seed(int(self.seed))
             self.train_loader, self.val_loader, self.test_loader = create_dataloaders(
-                self.X, self.S,
+                X, S,
                 window_size=self.window_size,
                 train_ratio=self.train_ratio,
                 val_ratio=self.val_ratio,
