@@ -54,8 +54,9 @@ def generate_hmm_data(
                     'means': shape = (num_states, D),
                     'covs':  shape = (num_states, D, D)
                 }
-        seed: int
-            Random seed.
+        seed: int or None
+            Random seed. An int makes the whole draw reproducible -- both the hidden state
+            path S and the observations X. None draws fresh randomness each call.
         clip_factor: float or None
             If not None and > 0, samples out of the range
                 [loc - k*std, loc + k*std]
@@ -71,6 +72,11 @@ def generate_hmm_data(
     """
     if seed is not None:
         np.random.seed(seed)
+
+    # np.random.seed above only drives the legacy global calls (the state path). The emission
+    # samplers need an explicit Generator: default_rng is a separate bit generator that
+    # np.random.seed does not touch. Threading it down is what makes X reproducible, not just S.
+    rng = np.random.default_rng(seed)
 
     # If transition_probs is not provided, generate a random one
     if transition_probs is None:
@@ -148,7 +154,7 @@ def generate_hmm_data(
 
             # If no clip_factor or <= 0, just standard sampling
             if not clip_factor or clip_factor <= 0:
-                samples = dists[state].rvs(size=n_required)
+                samples = dists[state].rvs(size=n_required, random_state=rng)
                 if D == 1:
                     samples = samples.reshape(-1, 1)
                 X[S == state] = samples
@@ -174,14 +180,13 @@ def generate_hmm_data(
                     D=D,
                     lower=lower,
                     upper=upper,
-                    chunk_size=chunk_size
+                    chunk_size=chunk_size,
+                    rng=rng,
                 )
 
     elif emission_dist == 'gaussian':
         means_ = model.means_  # type: ignore
         covs_ = model.covars_  # type: ignore
-
-        from np.random import multivariate_normal  # type: ignore
 
         for state in range(num_states):
             n_required = np.sum(S == state)
@@ -193,8 +198,7 @@ def generate_hmm_data(
             # If no clip_factor or <= 0, just standard sampling
             if not clip_factor or clip_factor <= 0:
                 # Sample from a normal distribution with means_[state], covs_[state]
-                # We can just use np.random.multivariate_normal for that
-                samples = multivariate_normal(means_[state], covs_[state], size=n_required)
+                samples = rng.multivariate_normal(means_[state], covs_[state], size=n_required)
                 X[S == state] = samples
             else:
                 # Rejection sampling approach
@@ -208,8 +212,8 @@ def generate_hmm_data(
 
                 # Create a callable distribution for convenience
                 # We'll do a small helper that samples from MVN.
-                def _gaussian_rvs(size):
-                    return multivariate_normal(mean_, covs_state, size=size)
+                def _gaussian_rvs(size, mean_=mean_, covs_state=covs_state):
+                    return rng.multivariate_normal(mean_, covs_state, size=size)
 
                 X[S == state] = _rejection_sample(
                     distribution=_gaussian_rvs,
@@ -217,7 +221,8 @@ def generate_hmm_data(
                     D=D,
                     lower=lower,
                     upper=upper,
-                    chunk_size=chunk_size
+                    chunk_size=chunk_size,
+                    rng=rng,
                 )
     
     if save_path is not None:
@@ -232,7 +237,7 @@ def generate_hmm_data(
     return S, X
 
 
-def _rejection_sample(distribution, n_samples, D, lower, upper, chunk_size=1000):
+def _rejection_sample(distribution, n_samples, D, lower, upper, chunk_size=1000, rng=None):
     """
     A helper function to perform rejection sampling. It keeps drawing from the given
     distribution in chunks, discards samples outside [lower, upper] for each dimension,
@@ -253,6 +258,10 @@ def _rejection_sample(distribution, n_samples, D, lower, upper, chunk_size=1000)
         Upper bound for each dimension.
     chunk_size : int
         How many samples to generate at once.
+    rng : np.random.Generator or None
+        Passed to the distribution's rvs as random_state, so the draw is reproducible.
+        The number of chunks depends on how many samples get rejected, so the whole
+        stream must be deterministic for the result to be reproducible.
 
     Returns:
     -------
@@ -272,10 +281,8 @@ def _rejection_sample(distribution, n_samples, D, lower, upper, chunk_size=1000)
             # print(valid_samples[:10])
 
         if is_scipy_dist:
-            batch = distribution.rvs(size=chunk_size)
-        elif isinstance(distribution, GAS_SN):
-            assert D == 1, "For 'gassn', D must be 1." 
-            batch = distribution.rvs(size=chunk_size)
+            # covers GAS_SN and the scipy dists alike -- both take random_state
+            batch = distribution.rvs(size=chunk_size, random_state=rng)
         else:
             batch = distribution(chunk_size)
 

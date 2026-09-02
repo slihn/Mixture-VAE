@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import torch
 from scipy.stats import kurtosis, skew
 
 from data_code.synthetic_data import generate_hmm_data
@@ -107,6 +108,8 @@ class GAS_SN_Comparator:
         self.stay_prob = stay_prob
         self.clip_factor = clip_factor  # gas-sn tolerates a larger clip factor than t
         self.chunk_size = chunk_size
+        # an int makes S and X both reproducible; None gives fresh randomness.
+        # Vary it across replicates (seed=rep) to get independent draws.
         self.seed = seed
 
         self.window_size = window_size
@@ -192,6 +195,11 @@ class GAS_SN_Comparator:
         if self.train_loader is None:
             if self.X is None:
                 self.generate()
+            # A seeded generator pins the train loader's shuffle permutation. Seeding torch's
+            # global RNG is not sufficient: RandomSampler redraws on every iteration.
+            generator = None
+            if self.seed is not None:
+                generator = torch.Generator().manual_seed(int(self.seed))
             self.train_loader, self.val_loader, self.test_loader = create_dataloaders(
                 self.X, self.S,
                 window_size=self.window_size,
@@ -200,6 +208,7 @@ class GAS_SN_Comparator:
                 batch_size=self.batch_size,
                 standardize=True,
                 feature_engineer=True,
+                generator=generator,
             )
         return self.train_loader, self.val_loader, self.test_loader
 
@@ -225,7 +234,15 @@ class GAS_SN_Comparator:
         self.results[name] = bac
         return bac
 
+    def _seed_torch(self):
+        """Pin torch's global RNG. Must run BEFORE a module is constructed, because weight
+        init draws from it -- and a module built in a call expression is created before the
+        callee's body runs."""
+        if self.seed is not None:
+            torch.manual_seed(int(self.seed))
+
     def fit_vae(self):
+        self._seed_torch()          # covers the VAE's weight init
         return self._score('vae', VAEModule(self.vae_params),
                            lr=self.vae_lr, epochs=self.vae_epochs)
 

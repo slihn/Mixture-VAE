@@ -102,7 +102,7 @@ def create_datasets(X, S, window_size=1000, train_ratio=0.6, val_ratio=0.2, trai
     return train_dataset, val_dataset, test_dataset
 
 
-def create_dataloaders(X, S, window_size=1000, train_ratio=0.6, val_ratio=0.2, train_len=None, val_len=None, batch_size=16, standardize=False, feature_engineer=False, train_shuffle=True):
+def create_dataloaders(X, S, window_size=1000, train_ratio=0.6, val_ratio=0.2, train_len=None, val_len=None, batch_size=16, standardize=False, feature_engineer=False, train_shuffle=True, generator=None):
     """
     Create DataLoaders for train, validation, and test datasets.
 
@@ -124,7 +124,11 @@ def create_dataloaders(X, S, window_size=1000, train_ratio=0.6, val_ratio=0.2, t
     
     train_dataset, val_dataset, test_dataset = create_datasets(X, S, window_size, train_ratio, val_ratio, train_len, val_len, standardize)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=train_shuffle)
+    # generator pins the shuffle permutation. Without one, RandomSampler draws a fresh
+    # permutation from torch's global RNG on EVERY iteration, so seeding at construction
+    # time is not enough -- even re-iterating the same loader reorders the windows.
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=train_shuffle,
+                              generator=generator)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 

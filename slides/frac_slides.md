@@ -105,7 +105,7 @@ style: |
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/gas-impl`</span>
 
-### ![w:70](assets/tiger.svg) v24
+### ![w:70](assets/tiger.svg) v31
 
 ---
 
@@ -444,12 +444,15 @@ $\alpha = 1.1$, $k = 2.75$, $\beta = -0.1$, clip $= 12$.
 
 | | $n$ | mean | sd | skew | kurtosis |
 |---|---|---|---|---|---|
-| all | 100,008 | 0.000024 | 0.005037 | 0.063 | **5.32** |
-| state 0 | 49,428 | $-0.000997$ | 0.004924 | 0.058 | 5.79 |
-| state 1 | 50,580 | 0.001021 | 0.004947 | 0.070 | 5.77 |
+| all | 100,008 | $-0.000315$ | 0.005012 | $-0.109$ | **5.25** |
+| state 0 | 49,428 | $-0.001335$ | 0.004899 | $-0.122$ | 5.72 |
+| state 1 | 50,580 | 0.000681 | 0.004920 | $-0.116$ | 5.68 |
 
-- Excess kurtosis **5.3** — *after* clipping at $12 \times$ scale $= 0.036$, which is $\approx 7$ **std**, because the heavy tails lift the std to 0.005 from a scale of 0.003. The unclipped law has far heavier tails.
-- Skew $\approx 0.06$ because we set $\beta = 0.1$; the residual is sampling noise.
+Moments are averaged over 20 replicates, drawn while the sampler was still unseeded.
+
+- Excess kurtosis **5.2** — *after* clipping at $12 \times$ scale $= 0.036$, which is $\approx 7$ **std**, because the heavy tails lift the std to 0.005 from a scale of 0.003. The unclipped law has far heavier tails.
+- Skew $\approx -0.11$ because we set $\beta = -0.1$. The estimate is noisy — sd 0.04 across replicates, since heavy tails make a third moment hard to pin down — but it came out negative in **20 of 20** replicates.
+- The skew also drags both states down by $0.0003$, so the realized means are not $\mp 0.001$; the **gap** between them is still $0.002$.
 - The regime signal is a **mean shift of $\pm 0.001$ against a std of $0.005$** — a signal-to-noise ratio of 0.2. This is deliberately hard.
 
 ---
@@ -465,7 +468,7 @@ Balanced accuracy on the held-out test split:
 | Jump | 0.507 | at chance |
 | Gaussian-HMM | 0.500 | `Model is not converging` |
 
-Outcomes are **bimodal** — roughly 0.52 or 0.69 — so every number is a mean over replicates. A single run is not reproducible: `seed` fixes the state path $S_t$ but **not** the observations, because the Kanter sampler draws from an unseeded generator.
+Outcomes are **bimodal** — roughly 0.52 or 0.69 — so every number is a mean over replicates. These were measured while the Kanter sampler was unseeded, so a single run was not reproducible; `seed` now pins the observations too, so replicates pass `seed=rep`.
 
 **This is one point in parameter space.** One slide per model on what happens when we move.
 
@@ -497,7 +500,38 @@ Outcomes are **bimodal** — roughly 0.52 or 0.69 — so every number is a mean 
 - $\alpha$ threshold at ~1.4–1.6 (0.508 $\to$ 0.709), higher than KMeans'.
 - `jump_penalty` — the hardcoded 100.0 was the **worst of seven values** at $k=2.75$; but once $k \ge 4$, every penalty from 0.03 to 30 gives $p = 1.00$. A dead-zone-only lever.
 
-**Why:** it estimates per-state means in its m-step, so retained outliers corrupt them.
+**Why:** it estimates per-state means in its m-step, so retained outliers corrupt them — which is why cutting the tails and widening `loc` buy the same thing. *Next slide: the axis that subsumes all four.*
+
+---
+
+## Jump — what it needs is **cluster distance**
+
+$$\text{cluster distance} = \frac{\mathrm{median}_1 - \mathrm{median}_0}{\mathrm{MAD}}, \qquad \mathrm{MAD} = 1.4826\,\mathrm{median}\big(|x - \mathrm{median}(x)|\big)$$
+
+A width like the sd, but built from medians — **fat tails cannot move it**, and it exists at every $k$. `loc` is not comparable: the scale it divides by swings **1.6×** across the grid, and the pipeline z-scores $X$ before building a feature, so **only the ratio reaches the model**.
+
+| `loc` | 0.0008 | **0.0010** (preset) | 0.0011 | **0.0013** | 0.0016 | 0.0020 |
+|---|---|---|---|---|---|---|
+| **cluster distance** | 0.431 | **0.527** | 0.573 | **0.661** | 0.780 | 0.915 |
+| accuracy | 0.506 | **0.508** | 0.611 | **0.734** | 0.774 | 0.800 |
+| $p(>0.6)$ | 0.00 | **0.00** | 0.50 | **1.00** | 1.00 | 1.00 |
+
+- At the preset Jump is at chance at **0.53** and reliable at **0.66** — under water by ~20%, a *fourth* axis measured just below its threshold.
+- But that requirement is **not a constant**: across the 16 $(\alpha,k)$ cells it runs $0.295$–$0.853$. One number is not enough → next slide.
+
+---
+
+## The two-term law: separation **and** tail weight
+
+Regress each cell's **threshold** cluster distance (smallest value where all 10 reps clear 0.6) on its **excess kurtosis** $\kappa$ — one point per $(\alpha,k)$ cell, $n=16$, OLS:
+
+$$\boxed{\;\text{threshold} \;=\; 0.340 \;+\; 0.0622\,\kappa\;} \qquad R^2 = \mathbf{0.948}$$
+
+- **Intercept:** with Gaussian tails, clusters must be $\tfrac{1}{3}$ of a robust width apart.
+- **Slope:** each unit of excess kurtosis costs $0.062$ more separation — the preset's $\kappa = 5.17$ **doubles** the requirement. Predicted $0.6619$ vs measured $0.6611$.
+- $\alpha$ and $k$ **do not appear**: their whole effect runs through $\kappa$. A 2-D surface collapses to a line.
+
+**Why median/MAD and not mean/sd** — the sd *partially absorbs* tail weight, so it wins as a single ranking number (Spearman $0.97$ vs $0.89$) but leaves a muddier residual: $R^2 = 0.73$ against $\mathbf{0.95}$. MAD ignores tails entirely, so separation and tail weight come out **orthogonal and additive**. It is also half as noisy (CV $0.29\%$ vs $0.60\%$), clip-invariant ($1.03\times$ vs $1.36\times$), and defined for $k \le 2$ — where **the variance does not exist at all** ($k=1.5$: unclipped sd never settles, $\max|x| = 5589\times$ scale).
 
 ---
 
@@ -526,9 +560,11 @@ The signal was never lost — the unweighted Euclidean metric picked the wrong a
 | $k$ | flips at ~3–4 | flips at ~3–4 | **no cliff** — 0.61 at $k=1.5$ |
 | $\alpha$ | flips at ~1.1–1.2 | flips at ~1.4–1.6 | **flat** across 0.7–1.6 |
 | clip | needs $\ge 16$ | needs $\le 10$ | **indifferent** |
+| **cluster distance** | not swept | $0.340\!+\!0.062\kappa$ | not swept |
 
 - The baselines fail for **unrelated** reasons — feature selection for KMeans, outlier contamination for Jump — so this is not one shared weakness.
 - **No single `clip_factor` is fair to both**, and the benchmark's 12 breaks each of them.
+- **Cluster distance** — $\Delta\text{medians}/\mathrm{MAD}$ — subsumes `loc`, and with $\kappa$ it subsumes $\alpha$ and $k$ too: Jump's requirement is $0.340 + 0.062\kappa$ ($R^2 = 0.95$). The preset's $0.53$ against a needed $0.66$ is the tightest margin of the four. Swept for Jump only so far.
 
 **The VAE buys robustness, not peak accuracy — the only survivor at $k \le 3$, never the best at $k \ge 4$.**
 
