@@ -105,7 +105,7 @@ style: |
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/gas-impl`</span>
 
-### ![w:70](assets/tiger.svg) v35
+### ![w:70](assets/tiger.svg) v37
 
 ---
 
@@ -531,7 +531,7 @@ Balanced accuracy on the held-out test split, 10 replicates at `seed=rep` — wh
 
 ---
 
-## The two-term law: separation **and** tail weight
+## Jump — The two-term law: separation **and** tail weight
 
 Regress each cell's **threshold** cluster distance (smallest value where all 10 reps clear 0.6) on its **excess kurtosis** $\kappa$ — one point per $(\alpha,k)$ cell, $n=16$, OLS:
 
@@ -547,21 +547,23 @@ $$\boxed{\;\text{threshold} \;=\; 0.339 \;+\; 0.0627\,\kappa\;} \qquad R^2 = \ma
 
 ## KMeans++ — never a capability problem
 
-| $k$ | 1.5 | 2.0 | 2.75 | 4.0 | 6.0 |
-|---|---|---|---|---|---|
-| accuracy mean | 0.519 | 0.522 | 0.578 | 0.705 | 0.721 |
+**40,960 fits**: `loc` $\times\ \alpha\ \times k\ \times$ `clip` $\times$ **feature set**, 20 replicates each.
 
-"$k$ is the dominant knob" is a property of the 15-feature pipeline, not of the data.
+| feature set | $p(\text{bac}>0.6)$ | mean | max |
+|---|---|---|---|
+| 6 rolling **means** | **0.95** | 0.731 | 0.870 |
+| all 15 | 0.78 | 0.702 | 0.877 |
+| 8 **scale** features | **0.000** | 0.505 | **0.524** |
 
-It splits on **`cstd_6`**, a volatility feature whose regime separation is $\approx -0.005$ — instead of the rolling means, whose separation is $0.83$. The two axes are within **3%** of each other as binary splits (0.63–0.65 variance explained), so the winner flips run to run.
+The scale features are the control: signal-free by construction — the states differ only in `loc`, never in scale — and across 10,240 fits not one exceeded $0.524$. So the failure is the wrong **axis**, not too many features.
 
-$$\textbf{Restricted to the six mean features: } p(\text{bac} > 0.6) = 1.00 \textbf{ at every setting, down to } \alpha=0.9,\; k=1.5$$
+$$\textbf{Restricted to the six means: } p(\text{bac}>0.6) = 1.00 \textbf{ at every } loc \ge 0.0008,\ \textbf{all } \alpha,\, k,\, \text{clip}$$
 
-The signal was never lost — the unweighted Euclidean metric picked the wrong axis. $\alpha$ flips it at ~1.1–1.2, and clip must be $\ge 16$: the **opposite** of what Jump needs.
+`clip` bites only while a scale axis survives: at the preset it runs $0.35 \to 0.95$ across clip $10\to20$ for all-15, and is **flat** for the means.
 
 ---
 
-## What the sweep actually shows
+## Summary — where each model breaks
 
 **The ranking reverses at $k = 4$.** Below it only the VAE retains signal; above it all three work and Jump leads.
 
@@ -569,12 +571,27 @@ The signal was never lost — the unweighted Euclidean metric picked the wrong a
 |---|---|---|---|
 | $k$ | flips at ~3–4 | flips at ~3–4 | **no cliff** — 0.61 at $k=1.5$ |
 | $\alpha$ | flips at ~1.1–1.2 | flips at ~1.4–1.6 | **flat** across 0.7–1.6 |
-| clip | needs $\ge 16$ | needs $\le 10$ | **indifferent** |
-| **cluster distance** | not swept | $0.339\!+\!0.063\kappa$ | not swept |
+| clip | $\ge 16$ **at the preset only** | needs $\le 10$ | **indifferent** |
 
 - The baselines fail for **unrelated** reasons — feature selection for KMeans, outlier contamination for Jump — so this is not one shared weakness.
 - **No single `clip_factor` is fair to both**, and the benchmark's 12 breaks each of them.
-- **Cluster distance** — $\Delta\text{medians}/\mathrm{MAD}$ — subsumes `loc`, and with $\kappa$ it subsumes $\alpha$ and $k$ too: Jump's requirement is $0.339 + 0.063\kappa$ ($R^2 = 0.95$). The preset's $0.52$ against a needed $0.66$ is the tightest margin of the four. Swept for Jump only so far.
+- Every "dominant knob" here is local: KMeans' clip sensitivity is real at the preset and **absent** once pooled over the grid.
+
+---
+
+## Summary — cluster distance is the common currency
+
+| model | separation required | $R^2$ |
+|---|---|---|
+| Jump | $0.339 + 0.063\,\kappa$ | 0.95 |
+| KMeans++, all 15 features | $0.279 + 0.033\,\kappa$ | **0.41** |
+| KMeans++, 6 mean features | $0.234 + 0.007\,\kappa$ | **flat** |
+| Mixture-VAE | *sweep pending* | — |
+
+$\Delta\text{medians}/\mathrm{MAD}$ subsumes `loc`; with the excess kurtosis $\kappa$ it subsumes $\alpha$ and $k$ too. The preset's $0.52$ against Jump's required $0.66$ is the tightest margin of the four.
+
+- **The tail term belongs to the feature set, not the model.** Give KMeans the right axis and the $\kappa$ term nearly vanishes — heavy tails stop costing anything.
+- KMeans-on-all does not really obey a threshold law: at $R^2 = 0.41$ its crossing is a **mixing proportion** between two modes, not a threshold.
 
 **The VAE buys robustness, not peak accuracy — the only survivor at $k \le 3$, never the best at $k \ge 4$.**
 

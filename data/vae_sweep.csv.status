@@ -1,0 +1,16 @@
+state        RUNNING
+written      2026-09-02 21:03:55
+last fit     (none yet)
+pid          149094
+
+rows         5184 total
+complete     0 (0.0%)   [0 before this run, 0 this run]
+remaining    5184
+elapsed      0.00 h
+rate         0 fits/h
+eta          --
+
+completion by cell -- a threshold needs every loc and rep in the cell:
+
+resume with:
+  PYTHONPATH=/mnt/c/Users/Stephen.lihn/PycharmProjects/gas-impl:/mnt/c/Users/Stephen.lihn/PycharmProjects/adp_tf:/mnt/c/Users/Stephen.lihn/PycharmProjects:/mnt/c/Users/Stephen.lihn/PycharmProjects/Mixture-VAE /home/slihn/.venv3.11/bin/python -m compare.vae_sweep --workers 19 --shuffle 0 --status-every 900

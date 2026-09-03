@@ -9,6 +9,7 @@ from scipy.stats import kurtosis, skew
 
 from data_code.synthetic_data import generate_hmm_data
 from data_code.dataloader import create_dataloaders
+from data_code.feature_engineer import apply_feature_engineering
 from model.vae_module import VAEModule
 from model.jump_module import JumpModule
 from model.kmeans_module import KMeansModule
@@ -73,6 +74,33 @@ class VAEParams:
             setattr(self, key, value)
 
 
+# The 15 columns apply_feature_engineering emits, in order. Two families:
+# the rolling MEANS carry the +/-loc regime shift (true separation ~0.83), while
+# the stds and |diff| carry ZERO signal -- the two states differ only in loc,
+# never in scale. KMeans failing on this benchmark is always a split on a scale
+# feature, so the feature set is a first-class experimental axis, not a constant.
+FEATURE_NAMES = (
+    'x', 'absolute_change', 'previous_absolute_change',
+    'centered_mean_6', 'centered_std_6', 'right_mean_6', 'right_std_6',
+    'left_mean_6', 'left_std_6',
+    'centered_mean_14', 'centered_std_14', 'right_mean_14', 'right_std_14',
+    'left_mean_14', 'left_std_14',
+)
+_MEANS = tuple(n for n in FEATURE_NAMES if '_mean_' in n)
+_SCALES = tuple(n for n in FEATURE_NAMES if '_std_' in n or 'change' in n)
+
+FEATURE_SETS = {
+    'all': FEATURE_NAMES,                    # default: unchanged behaviour
+    'means': _MEANS,                         # the 6 signal-carrying columns
+    'means_x': ('x',) + _MEANS,
+    'scales': _SCALES,                       # negative control: should sit at chance
+    'raw': ('x',),
+    'len6': tuple(n for n in FEATURE_NAMES if n.endswith('_6')),
+    'len14': tuple(n for n in FEATURE_NAMES if n.endswith('_14')),
+    'centered': tuple(n for n in FEATURE_NAMES if n.startswith('centered_')),
+}
+
+
 class GAS_SN_Comparator:
     """Generate a 2-state HMM with GAS-SN emissions and score models by balanced accuracy.
 
@@ -94,6 +122,7 @@ class GAS_SN_Comparator:
                  jump_penalty=100.0, jump_max_iter=100,
                  kmeans_n_init=10, kmeans_max_iter=300,
                  hmm_n_iter=100, hmm_covariance_type='full',
+                 feature_set='all',
                  **vae_params):
         assert D == 1, "GAS_SN emissions are univariate, so D must be 1"
 
@@ -128,6 +157,13 @@ class GAS_SN_Comparator:
         self.kmeans_max_iter = kmeans_max_iter
         self.hmm_n_iter = hmm_n_iter
         self.hmm_covariance_type = hmm_covariance_type
+        # Which engineered columns the models see. 'all' reproduces the original
+        # behaviour exactly; the other sets exist to separate "cannot detect the
+        # regime" from "was offered a more bisectable signal-free axis".
+        if feature_set not in FEATURE_SETS:
+            raise ValueError(f"unknown feature_set {feature_set!r}; "
+                             f"expected one of {sorted(FEATURE_SETS)}")
+        self.feature_set = feature_set
         self.vae_params_overrides = vae_params
 
         self.S: Optional[np.ndarray] = None
@@ -216,6 +252,12 @@ class GAS_SN_Comparator:
              for name, x in rows]
         ).set_index('state')
 
+    @property
+    def feature_indices(self):
+        """Column positions of the active feature set within FEATURE_NAMES."""
+        wanted = FEATURE_SETS[self.feature_set]
+        return [FEATURE_NAMES.index(n) for n in wanted]
+
     def dataloaders(self):
         if self.train_loader is None:
             S, X = self.data()
@@ -224,14 +266,18 @@ class GAS_SN_Comparator:
             generator = None
             if self.seed is not None:
                 generator = torch.Generator().manual_seed(int(self.seed))
+            # Engineer here rather than inside create_dataloaders so the column
+            # subset can be applied before windowing; feature_engineer=False below
+            # then just consumes the already-widened array.
+            X_feat = apply_feature_engineering(X)[:, self.feature_indices]
             self.train_loader, self.val_loader, self.test_loader = create_dataloaders(
-                X, S,
+                X_feat, S,
                 window_size=self.window_size,
                 train_ratio=self.train_ratio,
                 val_ratio=self.val_ratio,
                 batch_size=self.batch_size,
                 standardize=True,
-                feature_engineer=True,
+                feature_engineer=False,
                 generator=generator,
             )
         return self.train_loader, self.val_loader, self.test_loader
@@ -240,7 +286,9 @@ class GAS_SN_Comparator:
     @property
     def vae_params(self):
         return VAEParams(
-            feature=self.D * 15,  # width produced by apply_feature_engineering
+            # width actually handed to the model -- follows feature_set rather than
+            # assuming the full 15 columns apply_feature_engineering can emit
+            feature=self.D * len(self.feature_indices),
             n_cluster=self.num_states,
             seq_len=self.window_size,
             loss_clamp=self.batch_size * self.window_size * 10,
