@@ -5,6 +5,9 @@ rises linearly with tail weight:
 
     cdist_mad_required = 0.339 + 0.0627 * excess_kurtosis      (R^2 = 0.95)
 
+read at bac target 0.67, penalty 100, clip 12. See "CHOOSING --target" below: those
+three qualifiers are part of the result, not context.
+
 This recovers that shape from any sweep CSV, for any model. The procedure:
 
 1. Group the rows by every axis except the separation axis (`--x-axis`), so each
@@ -28,6 +31,35 @@ Replicate spread matters here: the VAE's outcome distribution has a fat left tai
 so a mean over few reps can sit below target on one draw. `--min-reps` guards the
 obvious case; the printed per-group table shows n and the spread so a thin or
 bimodal cell is visible rather than silently regressed on.
+
+CHOOSING `--target`, AND WHY IT IS NOT COSMETIC
+-----------------------------------------------
+**The intercept is a function of the target; the slope is nearly not.** At jump
+`penalty=100, clip=12`: 0.241 + 0.0634k at target 0.58, 0.260 + 0.0629k at 0.60,
+0.311 + 0.0600k at 0.65, 0.390 + 0.0524k at 0.70. So a quoted requirement is
+meaningless without its target -- `0.339 + 0.0627k` is the target-0.67 reading of the
+same data that gives 0.260 at target 0.60.
+
+**Use `--target 0.65` for a law. Keep `p(bac>0.6)` for classification.** The deciding
+issue is saturation: a cell already above target at *every* swept separation yields no
+crossing and is dropped, and those are exactly the cells where the model does best, so
+a low target biases the law toward the hard corners. At a well-tuned jump config
+(`penalty=30, clip=8`) target 0.60 discards 6 of 16 cells and fits at R^2 0.877, while
+0.66 discards 1 and fits at 0.928. KMeans-on-means loses 41 of 64 cells at 0.60. Watch
+the "no crossing / always at/above target" line this script prints -- that count is the
+diagnostic, and a large one means the target is too low for that model.
+
+0.6 remains correct as a found/not-found classifier: the bimodality antimode across the
+whole grid is 0.562, so 0.6 sits just on the success side of the density trough.
+
+**A law holds within a (penalty, clip) configuration, not across.** Pooled over all
+penalties and clips R^2 collapses to ~0.48 versus 0.93-0.98 within one config, so fit
+per config and quote the config alongside the target.
+
+`--criterion prob` reads the crossing off `p(bac>target)` instead of the replicate mean.
+It was built to test whether the criterion explained the 0.339/0.26 gap -- it does not
+(0.2602 vs 0.2647 on the same data). Kept because the question is worth being able to
+re-ask on a differently-shaped outcome distribution.
 """
 
 import argparse
@@ -75,6 +107,14 @@ def main():
                    help='tail-weight regressor; `kurt` is already excess kurtosis')
     p.add_argument('--target', type=float, default=0.6)
     p.add_argument('--min-reps', type=int, default=3)
+    p.add_argument('--criterion', choices=('mean', 'prob'), default='mean',
+                   help="how a rung counts as passing. 'mean': replicate-average bac "
+                        "reaches --target. 'prob': the SHARE of replicates above "
+                        "--target reaches --prob-level. They differ whenever the "
+                        "outcome is bimodal -- the prob curve lags the mean curve, so "
+                        "it reports a larger requirement.")
+    p.add_argument('--prob-level', type=float, default=0.5,
+                   help='crossing level for --criterion prob')
     args = p.parse_args()
 
     rows = load(args.csv, args.model)
@@ -101,17 +141,23 @@ def main():
         if len(by_x) < 2:
             continue
         xs = np.array(sorted(by_x))
-        bac = np.array([np.mean([float(r['bac']) for r in by_x[x]]) for x in xs])
+        if args.criterion == 'prob':
+            bac = np.array([np.mean([float(r['bac']) > args.target for r in by_x[x]])
+                            for x in xs])
+            level = args.prob_level
+        else:
+            bac = np.array([np.mean([float(r['bac']) for r in by_x[x]]) for x in xs])
+            level = args.target
         # Report the threshold in --y units: average the moment at each separation,
         # then interpolate on the same footing as bac.
         yv = np.array([np.mean([float(r[args.y]) for r in by_x[x]]) for x in xs])
         xr = np.array([np.mean([float(r[args.x]) for r in by_x[x]]) for x in xs])
 
-        thr_in_x = crossing(xs, bac, args.target)
+        thr_in_x = crossing(xs, bac, level)
         line = "  ".join(f"{v:>12}" for v in key)
         rng = f"{bac.min():.3f}-{bac.max():.3f}"
         if thr_in_x is None:
-            verdict = 'always>=' if bac.min() >= args.target else 'never'
+            verdict = 'always>=' if bac.min() >= level else 'never'
             no_cross.append((key, verdict, bac.min(), bac.max()))
             print(f"{line} {len(xs):>4} {rng:>15} {verdict:>8} {'':>8}")
             continue

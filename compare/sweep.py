@@ -47,7 +47,8 @@ cut short: cells are then fitted in a seeded random order, so whatever completes
 unbiased sample of the grid instead of the lowest values of the first axis.
 
 **Status file.** `<out>.status` is rewritten every `--status-every` seconds (hourly by
-default), at startup, on clean finish, on failure, and on SIGINT/SIGTERM. It is plain
+default), at startup, on clean finish, on failure, and on SIGINT/SIGTERM -- by the
+PARENT only; workers reset their handlers (`_init_worker`) so they cannot clobber it. It is plain
 text meant to be read the morning after an overnight run: progress, rate, per-cell
 completion so a partial grid can still be analysed, and the verbatim resume command. A
 `last fit` far behind `written` is the tell that the job wedged rather than being slow.
@@ -174,6 +175,20 @@ def run_cell(job) -> List[Dict]:
                      'model': model, 'rep': rep, 'bac': bac,
                      'secs': round(time.time() - t0, 1), 'error': err})
     return rows
+
+
+def _init_worker() -> None:
+    """Reset signal handling in a pool worker.
+
+    Pool forks AFTER the parent installs its SIGINT/SIGTERM handler, so without
+    this every worker inherits it. On a `timeout` or Ctrl-C the whole process
+    group is signalled, each worker then runs the parent's handler and rewrites
+    the status file from its own (empty) progress state -- last writer wins, and
+    the file reports "complete 0" for a run that had finished hundreds of fits.
+    Observed exactly that on the 2 h VAE probe: 396 rows on disk, status said 0.
+    """
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, signal.SIG_DFL)
 
 
 def _resume_command(prog: str) -> str:
@@ -341,7 +356,7 @@ def main(preset: Optional[Dict] = None, prog: str = 'compare.sweep',
             w = csv.DictWriter(fh, fieldnames=fields)
             if new_file:
                 w.writeheader()
-            with Pool(args.workers) as pool:
+            with Pool(args.workers, initializer=_init_worker) as pool:
                 for done_cells, rows in enumerate(
                         pool.imap_unordered(run_cell, todo), 1):
                     for row in rows:
@@ -361,7 +376,11 @@ def main(preset: Optional[Dict] = None, prog: str = 'compare.sweep',
                               f"{rate*3600:.0f} cells/h | "
                               f"eta {(len(todo)-done_cells)/rate/3600:.1f} h", flush=True)
     except BaseException as exc:
-        snapshot(f'FAILED: {type(exc).__name__}: {exc}')
+        # The signal handler has already written a truthful "STOPPED by signal"
+        # snapshot before raising SystemExit; overwriting it with FAILED would
+        # turn a deliberate stop into something that reads like a crash.
+        if not isinstance(exc, SystemExit):
+            snapshot(f'FAILED: {type(exc).__name__}: {exc}')
         raise
     snapshot('FINISHED' + (f' with {n_err} errored rows' if n_err else ''))
     print(f"wrote {args.out} and {status_path}", flush=True)

@@ -105,7 +105,7 @@ style: |
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/gas-impl`</span>
 
-### ![w:70](assets/tiger.svg) v37
+### ![w:70](assets/tiger.svg) v48
 
 ---
 
@@ -357,24 +357,10 @@ GAS_SN(alpha, k, beta, loc, scale).rvs(size)
                        └─ TitledStable3.rvs:   exp( c*gamma*log(E) - gamma*log A_alpha(Q) )
 ```
 
-
----
-
-## Does it actually work? Verified numbers
-
-For $\alpha = 1.1$, $k = 2.75$ — the parameters used in the benchmark:
-
-| Check | Theory | Sample |
-|---|---|---|
-| $\mathbb{E}[X]$, FCM | 0.853499 | 0.851921 |
-| $\mathrm{sd}(X)$, FCM | 0.337524 | 0.337214 |
-| $\mathbb{E}[X^{-1}]$ | 1.462901 | 1.466850 |
-
-- 200,000 Kanter draws in **0.05 s**
-- **100,008 GAS-SN draws in 0.06 s**
-
 The `rvs` generator is *not* the bottleneck in the benchmark anymore.
-KMeans++ and Jump models are fast. But a 500-epoch VAE fit is slow.
+
+- 100,008 GAS-SN draws in 0.06 s. Very fast.
+
 
 ---
 
@@ -394,11 +380,11 @@ Enhance Yuqi's Mixture-VAE code base:
 
 ---
 
-## Cluster distance
+## Cluster distance — between the two states
 
 $$\text{cluster distance} = \frac{\mathrm{median}_1 - \mathrm{median}_0}{\mathrm{MAD}}, \qquad \mathrm{MAD} = 1.4826\,\mathrm{median}\big(|x - \mathrm{median}(x)|\big)$$
 
-A better measure of the width between the two stats. It is like the sd, but built from medians — **fat tails cannot move it**, and it exists at every $\alpha, k$. 
+A better measure of the width between the two states. It is like the sd, but built from medians — **fat tails cannot move it**, and it exists at every $\alpha, k$. 
 
 `loc` is not comparable: the scale it divides could swing **2×** across the tests.
 
@@ -424,12 +410,12 @@ This is still in the **scale** space. `clip_factor=12.0` produces:
 | excess kurtosis $\kappa$ | 5.60 | 5.71 | 5.20 | 3.16 | 1.68 | $-70\%$ |
 
 - The 63% change in sd: the sd is tail-driven, so the clip inflates it and $k$ deflates it.
-- Cluster distance is much more stable
+- **Cluster distance** is a much more stable measure
 - The models are affected by two factors - cluster distance and $\kappa$.
 
 ---
 
-## `GAS_SN_Comparator`
+## `GAS_SN_Comparator` — Large scale model efficacy test
 
 `compare/gassn.py` — the whole experiment as one object:
 
@@ -439,15 +425,16 @@ cmp = GAS_SN_Comparator(
     alpha=1.1, k=2.75, beta=0.0,      # the GAS-SN knobs
     loc=0.001, scale=0.003, clip_factor=12.0,
     window_size=500, batch_size=32, vae_epochs=500,
+    jump_penalty=100.0,               # per-model knobs -- also swept
+    feature_set='all',                # 'all' 15 | 'means' 6 | 'scales' 8
+    seed=42,                          # states, Kanter draws, weight init, shuffle
 )
-cmp.cluster_distance()
-cmp.stats()      # moments, overall and per state
-cmp.compare()    # -> balanced accuracy for every model
+cmp.cluster_distance();  cmp.stats();  cmp.compare()
 ```
 
-`generate` → `dataloaders` → `fit_{vae,jump,kmeans,hmm}` → balanced accuracy, with label-permutation alignment (`utils.metrics.balanced_accuracy` maximizes over all $k!$ label assignments, so a "flipped" clustering is not penalized).
+`generate` → `dataloaders` → `fit_{vae,jump,kmeans,hmm}` → balanced accuracy, with label-permutation alignment (`utils.metrics.balanced_accuracy` maximizes over all $k!$ label assignments, so a "flipped" clustering is not penalized). $D = 1$ is enforced: the GAS-SN emission path is univariate.
 
-$D = 1$ is enforced: the GAS-SN emission path is univariate.
+**`compare/sweep.py`** turns *any* of those keywords into a swept axis — one draw shared by every model, resumable, 19-way parallel. ~40k fits are collected from each model.
 
 ---
 
@@ -483,24 +470,50 @@ Balanced accuracy on the held-out test split, 10 replicates at `seed=rep` — wh
 - **Outcomes are bimodal, so only the VAE's mean is a typical outcome.** KMeans lands at 0.51–0.55 in 7 reps and 0.66–0.68 in 3; Jump sits at 0.50–0.52 in 8, with one 0.70. Their means are **mixing proportions** — read $p$, not the mean.
 - The VAE is tighter: 0.65–0.69 in 7 reps, 3 low draws at 0.59–0.61.
 
-**This is one point in parameter space.** Model-specific analyses will follow.
+**This is one point in parameter space.** Next, the law that explains all four — then model by model.
+
 
 ---
 
-## Mixture-VAE — robust, but accuracy capped
 
-| $k$ | 1.5 | 2.0 | 2.5 | 2.75 | 3.0 | 4.0 | 5.0 | 6.0 |
-|---|---|---|---|---|---|---|---|---|
-| accuracy mean | 0.608 | 0.602 | 0.669 | **0.680** | 0.667 | 0.695 | 0.691 | 0.699 |
-| $p(>0.6)$ | 0.75 | 0.50 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+## Model efficacy — The two-term law for cluster distance **and** tail weight
 
-- Balanced accuracy: **Ceiling ~0.70** however favourable the data.
-- **No cliff on any axis.** It sustains high-60s for $k \ge 2.5$; below that it *degrades* to ~0.60 rather than collapsing — still far above the 0.52 the baselines give there.
-- $\alpha$ **flat** across **0.7–1.6** — a five-fold range of tail weight (kurtosis 10.4 → 2.0) with no trend. 
-- `clip_factor` makes **no difference at all**.
-- **Noisiest of the four models**: usually 0.65–0.70 but with an occasional **~0.59 draw**, scattered across $k$ and $\alpha$ rather than localised.
+For each $(\alpha,k)$ cell take its **cluster distance threshold** — where replicate-mean accuracy first reaches the target — and regress it on that cell's **excess kurtosis** $\kappa$:
+
+$$\boxed{\text{cluster} \;\text{distance:}\;\;\text{threshold} \;=\; a \;+\; b \,\kappa\;}$$
+
+- **Intercept $a$:** with Gaussian tails, how many robust widths apart the clusters must sit.
+- **Slope $b$:** what one unit of excess kurtosis costs in extra cluster distance.
+- $\alpha$ and $k$ **do not appear** — their whole effect runs through $\kappa$, collapsing a 2-D surface to a line.
+
+Jump model example: **`clip` and `jump_penalty` are *not* absorbed**: they **parameterize** the law rather than acting through $\kappa$. Pool over them and $R^2$ falls to $0.48$.
+
+$$\textbf{A quoted law is } (a, b) \textbf{ *plus* its accuracy target and its config — all four, or it is not reproducible.}$$
+
+<small>Target $0.65$ throughout: at $0.60$ the best-performing cells never cross at all, and dropping them biases the fit toward the hard corners.</small>
+
 
 ---
+
+## The two-term law: The intercept transfers, the slope does not
+
+Fitting the law **18 times at target $0.65$** on the completed **38,400-fit** sweep — Jump at $5$ `jump_penalty` $\times\ 3$ `clip` values, KMeans++ at the same $3$ `clip` values — the two terms behave nothing alike:
+
+| term | mean | spread | driven by |
+|---|---|---|---|
+| intercept $a$ | $0.277 \pm 0.034$ | $1.6\times$ | — essentially **nothing** |
+| slope $b$ | $0.062 \pm 0.028$ | $\mathbf{4.3\times}$ | almost entirely **`clip`** |
+
+- **$a$ is close to a constant of the problem.** Every model, at every config, needs a cluster distance of roughly **a third of a robust width** before it sees anything at Gaussian tails.
+- **$b$ is a property of how much tail you keep, not of which model you run.** At *fixed* `clip` $=12$ it is $0.0606 \pm 0.0011$ across five jump penalties **and** KMeans — six different model/config pairs agreeing to $2\%$ of their mean. Vary `clip` instead and it runs $0.103 \to 0.024$ — group means $0.093 / 0.061 / 0.032$ at clip $8 / 12 / 20$, non-overlapping.
+- So the model choice shows up **not** in $a$ or $b$, but in *which feature the tail is read through* — and in $R^2$, i.e. how threshold-like the model is at all.
+
+<small>Both statements hold **at a fixed target**. Vary the target instead and the roles swap: $a$ runs $0.24 \to 0.44$ over target $0.58 \to 0.72$ while $b$ barely moves — which is exactly why a law must be quoted with its target.</small>
+
+**Evidence for each claim follows, model by model.**
+
+---
+
 
 ## Jump — broken at the preset, best when tails thin
 
@@ -508,9 +521,9 @@ Balanced accuracy on the held-out test split, 10 replicates at `seed=rep` — wh
 |---|---|---|---|---|---|
 | accuracy mean | 0.522 | 0.520 | 0.507 | **0.717** | **0.730** |
 
-- **Above $k = 4$ it is the strongest model of the four** — 0.730 at $k=6$, sd 0.003, versus the VAE's 0.699.
-- Wants the tails **cut**: clip $8 \to 0.690$, $10 \to 0.612$, $12 \to 0.523$, $14 \to 0.507$. A cliff between 10 and 12.
-- $\alpha$ threshold at ~1.4–1.6 (0.508 $\to$ 0.709), higher than KMeans'.
+- **Above $k = 4$ it is the strongest model of the four** — 0.730 at $k=6$, sd 0.003. (The other three follow; none beats it there.)
+- Wants the tails **cut**: clip $8 \to 0.690$, $10 \to 0.612$, $12 \to 0.523$, $14 \to 0.507$. A cliff between 10 and 12 — but **only at `jump_penalty` $=100$**; at penalty $\le 3$ the clip dependence vanishes.
+- $\alpha$ threshold at ~1.4–1.6 (0.508 $\to$ 0.709).
 - `jump_penalty` — the hardcoded 100.0 was the **worst of seven values** at $k=2.75$; but once $k \ge 4$, every penalty from 0.03 to 30 gives $p = 1.00$. A dead-zone-only lever.
 
 **Why:** it estimates per-state means in its m-step, so retained outliers corrupt them — which is why cutting the tails and widening `loc` buy the same thing. *Next slide: the axis that subsumes all four.*
@@ -525,23 +538,22 @@ Balanced accuracy on the held-out test split, 10 replicates at `seed=rep` — wh
 |---|---|---|---|---|---|---|
 | **cluster distance** | 0.426 | **0.523** | 0.569 | 0.614 | **0.657** | 0.912 |
 | accuracy | 0.508 | **0.537** | 0.548 | 0.658 | **0.736** | 0.800 |
-| $p(>0.6)$ | 0.00 | **0.10** | 0.20 | 0.70 | **1.00** | 1.00 |
+| $p(>0.65)$ | 0.00 | **0.10** | 0.20 | 0.70 | **1.00** | 1.00 |
 
-- Discover the two-term law.
+- The threshold moves with `loc`, but so does $\kappa$ — the next slide separates them.
+- <small>Read at target $0.65$, as the law is. The row is **identical** at $0.60$: outcomes here are bimodal and not one of the 60 fits lands between the two targets, so the classifier is insensitive to the choice.</small>
 
 ---
 
-## Jump — The two-term law: separation **and** tail weight
+## Jump — the law, and why MAD is the right ruler
 
-Regress each cell's **threshold** cluster distance (smallest value where all 10 reps clear 0.6) on its **excess kurtosis** $\kappa$ — one point per $(\alpha,k)$ cell, $n=16$, OLS:
+$$\boxed{\;\text{threshold} \;=\; 0.312 \;+\; 0.0594\,\kappa\;} \qquad R^2 = \mathbf{0.987} \qquad n = 16$$
 
-$$\boxed{\;\text{threshold} \;=\; 0.339 \;+\; 0.0627\,\kappa\;} \qquad R^2 = \mathbf{0.950}$$
+<small>target $0.65$, `clip` $=12$, `jump_penalty` $=100$, all 16 cells crossing — the completed **38,400-fit** sweep, an independent reproduction of the original 1,760-fit result ($0.311 + 0.0600\,\kappa$) to within $0.3\%$ on $a$ and $1\%$ on $b$</small>
 
-- **Intercept:** with Gaussian tails, clusters must be $\tfrac{1}{3}$ of a robust width apart.
-- **Slope:** each unit of excess kurtosis costs $0.063$ more separation — the preset's $\kappa = 5.18$ **doubles** the requirement. Predicted $0.663$ vs measured $0.657$.
-- $\alpha$ and $k$ **do not appear**: their whole effect runs through $\kappa$. A 2-D surface collapses to a line.
+- Each unit of $\kappa$ costs $0.060$ more distance: the preset's $\kappa = 4.96$ **doubles** the requirement, to $0.607$ predicted vs $0.634$ measured. The preset supplies only $0.520$ — hence the failure.
 
-**Why median/MAD and not mean/sd** — the sd *partially absorbs* tail weight, so it wins as a single ranking number (Spearman $0.97$ vs $0.87$) but leaves a muddier residual: $R^2 = 0.74$ against $\mathbf{0.95}$. MAD ignores tails entirely, so separation and tail weight come out **orthogonal and additive**. It is also clip-invariant ($1.03\times$ vs $1.36\times$) and defined for $k \le 2$ — where **the variance does not exist at all** ($k=1.5$: unclipped sd never settles, $\max|x| = 5589\times$ scale). Its cost: a *worse* ranker than even raw `loc` ($0.90$).
+**Why median/MAD and not mean/sd** — the sd *partially absorbs* tail weight, so it wins as a single ranking number (Spearman $0.97$ vs $0.87$) but leaves a muddier residual: $R^2 = 0.736$ against $\mathbf{0.977}$ (same cells, same target, both on the original 1,760-fit sweep). MAD ignores tails entirely, so distance and tail weight come out **orthogonal and additive**. It is also clip-invariant ($1.03\times$ vs $1.36\times$) and defined for $k \le 2$ — where **the variance does not exist at all** ($k=1.5$: unclipped sd never settles, $\max|x| = 5589\times$ scale). Its cost: a *worse* ranker than even raw `loc` ($0.90$).
 
 ---
 
@@ -549,19 +561,38 @@ $$\boxed{\;\text{threshold} \;=\; 0.339 \;+\; 0.0627\,\kappa\;} \qquad R^2 = \ma
 
 **40,960 fits**: `loc` $\times\ \alpha\ \times k\ \times$ `clip` $\times$ **feature set**, 20 replicates each.
 
-| feature set | $p(\text{bac}>0.6)$ | mean | max |
+| feature set | $p(\text{bac}>0.65)$ | mean | max |
 |---|---|---|---|
-| 6 rolling **means** | **0.95** | 0.731 | 0.870 |
-| all 15 | 0.78 | 0.702 | 0.877 |
+| 6 rolling **means** | **0.85** | 0.731 | 0.870 |
+| all 15 | 0.75 | 0.702 | 0.877 |
 | 8 **scale** features | **0.000** | 0.505 | **0.524** |
 
 The scale features are the control: signal-free by construction — the states differ only in `loc`, never in scale — and across 10,240 fits not one exceeded $0.524$. So the failure is the wrong **axis**, not too many features.
 
-$$\textbf{Restricted to the six means: } p(\text{bac}>0.6) = 1.00 \textbf{ at every } loc \ge 0.0008,\ \textbf{all } \alpha,\, k,\, \text{clip}$$
+$$\textbf{Restricted to the six means: } p(\text{bac}>0.65) = 1.00 \textbf{ at every } loc \ge 0.0010,\ \textbf{all } \alpha,\, k,\, \text{clip}$$
 
-`clip` bites only while a scale axis survives: at the preset it runs $0.35 \to 0.95$ across clip $10\to20$ for all-15, and is **flat** for the means.
+`clip` bites only while a scale axis survives: at the preset it runs $0.35 \to 0.95$ across clip $10\to20$ for all-15, and is **flat** for the means — unchanged whether read at $0.60$ or $0.65$.
+
+<small>Raising the target from $0.60$ to $0.65$ costs the means set only its weakest separation: $p$ falls $1.00 \to 0.75$ at $loc = 0.0008$ and is $1.00$ above it. The scale control stays at exactly $0.000$ either way.</small>
 
 ---
+
+## Mixture-VAE — robust, but accuracy capped
+
+| $k$ | 1.5 | 2.0 | 2.5 | 2.75 | 3.0 | 4.0 | 5.0 | 6.0 |
+|---|---|---|---|---|---|---|---|---|
+| accuracy mean | 0.608 | 0.602 | 0.669 | **0.680** | 0.667 | 0.695 | 0.691 | 0.699 |
+| $p(>0.6)$ | 0.75 | 0.50 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+
+<small>The one table still read at target $0.60$: it predates seeding and is not backed by a sweep CSV, so it cannot be re-read at $0.65$. The running `loc` sweep replaces it.</small>
+
+- **No cliff on any axis swept here.** It sustains high-60s for $k \ge 2.5$; below that it *degrades* to ~0.60 rather than collapsing — still far above the 0.52 the baselines give there.
+- Balanced accuracy looks capped at **~0.70** — but every column above holds `loc` at the preset. Open up the distance and it keeps climbing: **0.80 mean, 0.86 max at $loc = 0.002$**. The ceiling is the preset's, not the model's.
+- $\alpha$ **flat** across **0.7–1.6** — a five-fold range of tail weight (kurtosis 10.4 → 2.0) with no trend; `clip_factor` likewise shows no effect. Both were measured at the preset distance only.
+- **Noisiest of the four models**: usually 0.65–0.70 but with an occasional **~0.59 draw**, scattered across $k$ and $\alpha$ rather than localised.
+
+---
+
 
 ## Summary — where each model breaks
 
@@ -581,17 +612,19 @@ $$\textbf{Restricted to the six means: } p(\text{bac}>0.6) = 1.00 \textbf{ at ev
 
 ## Summary — cluster distance is the common currency
 
-| model | separation required | $R^2$ |
+One law per model, all read the same way — target $0.65$, `clip` $= 12$:
+
+| model | $a + b\,\kappa$ | $R^2$ |
 |---|---|---|
-| Jump | $0.339 + 0.063\,\kappa$ | 0.95 |
-| KMeans++, all 15 features | $0.279 + 0.033\,\kappa$ | **0.41** |
-| KMeans++, 6 mean features | $0.234 + 0.007\,\kappa$ | **flat** |
-| Mixture-VAE | *sweep pending* | — |
+| Jump (`penalty` $=100$) | $0.311 + 0.060\,\kappa$ | **0.98** |
+| KMeans++, 6 mean features | $0.326 + 0.018\,\kappa$ | 0.85 |
+| KMeans++, all 15 features | $0.276 + 0.060\,\kappa$ | 0.66 |
+| Mixture-VAE | *sweep not yet run* | — |
 
-$\Delta\text{medians}/\mathrm{MAD}$ subsumes `loc`; with the excess kurtosis $\kappa$ it subsumes $\alpha$ and $k$ too. The preset's $0.52$ against Jump's required $0.66$ is the tightest margin of the four.
+- $a$ barely moves; $b$ is set by `clip`, not by the model — the six mean features cut KMeans' slope to $0.018$ on the *same* data.
+- $R^2$ ranks how **threshold-like** each model is: Jump has a sharp requirement, KMeans-on-all barely one.
 
-- **The tail term belongs to the feature set, not the model.** Give KMeans the right axis and the $\kappa$ term nearly vanishes — heavy tails stop costing anything.
-- KMeans-on-all does not really obey a threshold law: at $R^2 = 0.41$ its crossing is a **mixing proportion** between two modes, not a threshold.
+<small>Per-config fits. A law quoted without its target *and* its config is not reproducible.</small>
 
 **The VAE buys robustness, not peak accuracy — the only survivor at $k \le 3$, never the best at $k \ge 4$.**
 
