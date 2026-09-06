@@ -105,7 +105,7 @@ style: |
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/gas-impl`</span>
 
-### ![w:70](assets/tiger.svg) v48
+### ![w:70](assets/tiger.svg) v49
 
 ---
 
@@ -484,76 +484,70 @@ $$\boxed{\text{cluster} \;\text{distance:}\;\;\text{threshold} \;=\; a \;+\; b \
 
 - **Intercept $a$:** with Gaussian tails, how many robust widths apart the clusters must sit.
 - **Slope $b$:** what one unit of excess kurtosis costs in extra cluster distance.
-- $\alpha$ and $k$ **do not appear** — their whole effect runs through $\kappa$, collapsing a 2-D surface to a line.
+- $\alpha$ and $k$ **do not appear separately** — their effect runs through $\kappa$, collapsing a 2-D surface to a line. *How completely* is exactly what $R^2$ measures: $0.99$ for Jump, $0.78$ for the VAE, $0.65$ for KMeans.
 
-Jump model example: **`clip` and `jump_penalty` are *not* absorbed**: they **parameterize** the law rather than acting through $\kappa$. Pool over them and $R^2$ falls to $0.48$.
+Jump example: **`clip` and `jump_penalty` are *not* absorbed** — they **parameterize** the law rather than acting through $\kappa$. Pool over them and $R^2$ falls to $0.48$. It holds across models too: pooling all nine (model, `clip`) configs of the 5,184-fit sweep gives $R^2 = 0.56$, against $0.65$–$0.99$ *within* a config.
 
-$$\textbf{A quoted law is } (a, b) \textbf{ *plus* its accuracy target and its config — all four, or it is not reproducible.}$$
+$$\textbf{A quoted law is } (a, b) \textbf{ plus its target and the } \kappa \textbf{ domain it was fitted over.}$$
 
-<small>Target $0.65$ throughout: at $0.60$ the best-performing cells never cross at all, and dropping them biases the fit toward the hard corners.</small>
+<small>Target $0.65$ throughout: at $0.60$ the best-performing cells sit above target at every separation, never cross, and dropping them biases the fit toward the hard corners. The opposite failure also occurs and is reported separately — at `clip` $=20$ Jump **never reaches** $0.65$ in $2$ of $12$ cells (KMeans in $1$), so those laws are fitted on the cells that do cross.</small>
 
 
 ---
 
 ## The two-term law: The intercept transfers, the slope does not
 
-Fitting the law **18 times at target $0.65$** on the completed **38,400-fit** sweep — Jump at $5$ `jump_penalty` $\times\ 3$ `clip` values, KMeans++ at the same $3$ `clip` values — the two terms behave nothing alike:
+Fitting the law **nine times at target $0.65$** — all three models $\times$ $3$ `clip` values, **all from the one 5,184-fit sweep** — the two terms behave nothing alike:
 
 | term | mean | spread | driven by |
 |---|---|---|---|
-| intercept $a$ | $0.277 \pm 0.034$ | $1.6\times$ | — essentially **nothing** |
-| slope $b$ | $0.062 \pm 0.028$ | $\mathbf{4.3\times}$ | almost entirely **`clip`** |
+| intercept $a$ | $0.313 \pm 0.021$ | $1.2\times$ | — essentially **nothing** |
+| slope $b$ | $0.057 \pm 0.024$ | $\mathbf{4.1\times}$ | mostly **`clip`**, partly the model |
 
-- **$a$ is close to a constant of the problem.** Every model, at every config, needs a cluster distance of roughly **a third of a robust width** before it sees anything at Gaussian tails.
-- **$b$ is a property of how much tail you keep, not of which model you run.** At *fixed* `clip` $=12$ it is $0.0606 \pm 0.0011$ across five jump penalties **and** KMeans — six different model/config pairs agreeing to $2\%$ of their mean. Vary `clip` instead and it runs $0.103 \to 0.024$ — group means $0.093 / 0.061 / 0.032$ at clip $8 / 12 / 20$, non-overlapping.
-- So the model choice shows up **not** in $a$ or $b$, but in *which feature the tail is read through* — and in $R^2$, i.e. how threshold-like the model is at all.
+- **$a$ is close to a constant of the problem.** Nine model/config pairs across three quite different algorithms, and every one needs roughly **a third of a robust width** before it sees anything at Gaussian tails.
+- **$b$ is what tails cost** — group means $0.081 / 0.057 / 0.035$ at clip $8 / 12 / 20$, non-overlapping. It looks like `clip` sets it; the next slide shows `clip` is not a setting the law responds to at all, but **which stretch of the $\kappa$ axis you looked at**. Models do differ genuinely though — at clip $8$ KMeans' slope is $63\%$ *above* Jump's, at clip $20$ it is $45\%$ *below*, and the **VAE sits $18\%$ under the pair at clip 12**.
+- So model choice shows up in *which feature the tail is read through*, in $R^2$ — and, for the VAE, in $b$ itself.
 
-<small>Both statements hold **at a fixed target**. Vary the target instead and the roles swap: $a$ runs $0.24 \to 0.44$ over target $0.58 \to 0.72$ while $b$ barely moves — which is exactly why a law must be quoted with its target.</small>
+<small>$a$ and $b$ are also stable across `jump_penalty`: on a separate 38,400-fit sweep, $18$ configs spanning $5$ penalties gave $a = 0.277 \pm 0.034$, $b = 0.062 \pm 0.028$ — the same picture. And both statements hold **at a fixed target**: vary the target instead and the roles swap, $a$ running $0.24 \to 0.44$ over target $0.58 \to 0.72$ while $b$ barely moves. A law must be quoted with its target *and* its config.</small>
 
-**Evidence for each claim follows, model by model.**
+**Two things the law cannot say follow — the ruler it is measured in, and a case where the *feature* mattered more than the model.**
+
+---
+
+
+## The slope moves with `clip` because `clip` moves the $\kappa$ window
+
+Threshold-vs-$\kappa$ is **concave for all three models** — a negative quadratic term in every case. So a *local* slope flattens along the axis, and each `clip` reaches a different stretch of it:
+
+| $\kappa$ window | $0-3$ | $3-6$ | $6-10$ | $10-17$ |
+|---|---|---|---|---|
+| **local slope $b$** | $\mathbf{0.063}$ | $0.051$ | $0.037$ | $0.038$ |
+| **highest $\kappa$ a clip reaches** | — | `clip` $8 \to 4.5$ | `clip` $12 \to 8.1$ | `clip` $20 \to 16.3$ |
+
+<small>and the slopes quoted for those clips: $0.081 / 0.057 / 0.035$ — the same decline, read off the same curve</small>
+
+$$\textbf{Clip does not change the law. It selects which chord of the curve you fit.}$$
+
+- $b$ belongs to the **$\kappa$ window**, not to `clip`. A quoted slope means nothing without the range it was fitted over — **that** is why a law needs its config, not merely convention.
+- A smaller genuine effect survives: at *matched* $\kappa$, changing `clip` still moves the threshold by $0.028 / 0.080 / 0.122$ (Jump / VAE / KMeans) against a $0.628$ span — **the same ordering as $R^2$**, i.e. how completely $\kappa$ summarises the tail for that model.
 
 ---
 
 
-## Jump — broken at the preset, best when tails thin
+## Why MAD, not sd — the ruler the whole framework rests on
 
-| $k$ | 1.5 | 2.0 | 2.75 | 4.0 | 6.0 |
-|---|---|---|---|---|---|
-| accuracy mean | 0.522 | 0.520 | 0.507 | **0.717** | **0.730** |
+Every law in this deck is in **MAD units**. That choice is doing real work:
 
-- **Above $k = 4$ it is the strongest model of the four** — 0.730 at $k=6$, sd 0.003. (The other three follow; none beats it there.)
-- Wants the tails **cut**: clip $8 \to 0.690$, $10 \to 0.612$, $12 \to 0.523$, $14 \to 0.507$. A cliff between 10 and 12 — but **only at `jump_penalty` $=100$**; at penalty $\le 3$ the clip dependence vanishes.
-- $\alpha$ threshold at ~1.4–1.6 (0.508 $\to$ 0.709).
-- `jump_penalty` — the hardcoded 100.0 was the **worst of seven values** at $k=2.75$; but once $k \ge 4$, every penalty from 0.03 to 30 gives $p = 1.00$. A dead-zone-only lever.
+| ruler | $R^2$ of the two-term law | clip-invariance | defined at $k \le 2$? |
+|---|---|---|---|
+| median / **MAD** | $\mathbf{0.977}$ | $1.03\times$ | **yes** |
+| mean / sd | $0.736$ | $1.36\times$ | **no** — the variance does not exist |
 
-**Why:** it estimates per-state means in its m-step, so retained outliers corrupt them — which is why cutting the tails and widening `loc` buy the same thing. *Next slide: the axis that subsumes all four.*
+- **sd partially absorbs tail weight.** That makes it the better *single* ranking number (Spearman $0.97$ vs $0.87$) but leaves a muddier residual. MAD ignores tails entirely, so distance and tail weight come out **orthogonal and additive** — which is what makes a two-*term* law possible at all.
+- At $k = 1.5$ the unclipped sd never settles ($\max|x| = 5589\times$ scale). **MAD is defined where the variance is not** — and $k \le 2$ is exactly the regime this benchmark is about.
+- Its cost, stated plainly: a *worse* single ranker than even raw `loc` ($0.90$).
 
----
-
-## Jump — best explained by the **cluster distance**
-
-1,760 fits ran (`seed=rep`) to check effect of `loc`, $\alpha$, $k$.
-
-| `loc` | 0.0008 | **0.0010** (preset) | 0.0011 | 0.0012 | **0.0013** | 0.0020 |
-|---|---|---|---|---|---|---|
-| **cluster distance** | 0.426 | **0.523** | 0.569 | 0.614 | **0.657** | 0.912 |
-| accuracy | 0.508 | **0.537** | 0.548 | 0.658 | **0.736** | 0.800 |
-| $p(>0.65)$ | 0.00 | **0.10** | 0.20 | 0.70 | **1.00** | 1.00 |
-
-- The threshold moves with `loc`, but so does $\kappa$ — the next slide separates them.
-- <small>Read at target $0.65$, as the law is. The row is **identical** at $0.60$: outcomes here are bimodal and not one of the 60 fits lands between the two targets, so the classifier is insensitive to the choice.</small>
-
----
-
-## Jump — the law, and why MAD is the right ruler
-
-$$\boxed{\;\text{threshold} \;=\; 0.312 \;+\; 0.0594\,\kappa\;} \qquad R^2 = \mathbf{0.987} \qquad n = 16$$
-
-<small>target $0.65$, `clip` $=12$, `jump_penalty` $=100$, all 16 cells crossing — the completed **38,400-fit** sweep, an independent reproduction of the original 1,760-fit result ($0.311 + 0.0600\,\kappa$) to within $0.3\%$ on $a$ and $1\%$ on $b$</small>
-
-- Each unit of $\kappa$ costs $0.060$ more distance: the preset's $\kappa = 4.96$ **doubles** the requirement, to $0.607$ predicted vs $0.634$ measured. The preset supplies only $0.520$ — hence the failure.
-
-**Why median/MAD and not mean/sd** — the sd *partially absorbs* tail weight, so it wins as a single ranking number (Spearman $0.97$ vs $0.87$) but leaves a muddier residual: $R^2 = 0.736$ against $\mathbf{0.977}$ (same cells, same target, both on the original 1,760-fit sweep). MAD ignores tails entirely, so distance and tail weight come out **orthogonal and additive**. It is also clip-invariant ($1.03\times$ vs $1.36\times$) and defined for $k \le 2$ — where **the variance does not exist at all** ($k=1.5$: unclipped sd never settles, $\max|x| = 5589\times$ scale). Its cost: a *worse* ranker than even raw `loc` ($0.90$).
+<small>Both rulers measured on the same cells at the same target, 1,760-fit sweep. The Jump law MAD produces — $0.312 + 0.0594\,\kappa$, $R^2 = 0.987$ on 38,400 fits — reproduces the original to $0.3\%$ on $a$ and $1\%$ on $b$.</small>
 
 ---
 
@@ -577,56 +571,72 @@ $$\textbf{Restricted to the six means: } p(\text{bac}>0.65) = 1.00 \textbf{ at e
 
 ---
 
-## Mixture-VAE — robust, but accuracy capped
+## The three laws, side by side — one sweep, one draw per cell
 
-| $k$ | 1.5 | 2.0 | 2.5 | 2.75 | 3.0 | 4.0 | 5.0 | 6.0 |
-|---|---|---|---|---|---|---|---|---|
-| accuracy mean | 0.608 | 0.602 | 0.669 | **0.680** | 0.667 | 0.695 | 0.691 | 0.699 |
-| $p(>0.6)$ | 0.75 | 0.50 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
-
-<small>The one table still read at target $0.60$: it predates seeding and is not backed by a sweep CSV, so it cannot be re-read at $0.65$. The running `loc` sweep replaces it.</small>
-
-- **No cliff on any axis swept here.** It sustains high-60s for $k \ge 2.5$; below that it *degrades* to ~0.60 rather than collapsing — still far above the 0.52 the baselines give there.
-- Balanced accuracy looks capped at **~0.70** — but every column above holds `loc` at the preset. Open up the distance and it keeps climbing: **0.80 mean, 0.86 max at $loc = 0.002$**. The ceiling is the preset's, not the model's.
-- $\alpha$ **flat** across **0.7–1.6** — a five-fold range of tail weight (kurtosis 10.4 → 2.0) with no trend; `clip_factor` likewise shows no effect. Both were measured at the preset distance only.
-- **Noisiest of the four models**: usually 0.65–0.70 but with an occasional **~0.59 draw**, scattered across $k$ and $\alpha$ rather than localised.
-
----
-
-
-## Summary — where each model breaks
-
-**The ranking reverses at $k = 4$.** Below it only the VAE retains signal; above it all three work and Jump leads.
-
-| axis | KMeans++ | Jump | **Mixture-VAE** |
-|---|---|---|---|
-| $k$ | flips at ~3–4 | flips at ~3–4 | **no cliff** — 0.61 at $k=1.5$ |
-| $\alpha$ | flips at ~1.1–1.2 | flips at ~1.4–1.6 | **flat** across 0.7–1.6 |
-| clip | $\ge 16$ **at the preset only** | needs $\le 10$ | **indifferent** |
-
-- The baselines fail for **unrelated** reasons — feature selection for KMeans, outlier contamination for Jump — so this is not one shared weakness.
-- **No single `clip_factor` is fair to both**, and the benchmark's 12 breaks each of them.
-- Every "dominant knob" here is local: KMeans' clip sensitivity is real at the preset and **absent** once pooled over the grid.
-
----
-
-## Summary — cluster distance is the common currency
-
-One law per model, all read the same way — target $0.65$, `clip` $= 12$:
-
-| model | $a + b\,\kappa$ | $R^2$ |
+| model | $a + b\,\kappa$ &nbsp;(target $0.65$, $\kappa \in 0.5-8.1$) | $R^2$ |
 |---|---|---|
-| Jump (`penalty` $=100$) | $0.311 + 0.060\,\kappa$ | **0.98** |
-| KMeans++, 6 mean features | $0.326 + 0.018\,\kappa$ | 0.85 |
-| KMeans++, all 15 features | $0.276 + 0.060\,\kappa$ | 0.66 |
-| Mixture-VAE | *sweep not yet run* | — |
+| **Mixture-VAE** | $\mathbf{0.333} + \mathbf{0.0500}\,\kappa$ | 0.78 |
+| Jump | $0.311 + 0.0609\,\kappa$ | **0.99** |
+| KMeans++ | $\mathbf{0.281} + 0.0607\,\kappa$ | 0.65 |
 
-- $a$ barely moves; $b$ is set by `clip`, not by the model — the six mean features cut KMeans' slope to $0.018$ on the *same* data.
-- $R^2$ ranks how **threshold-like** each model is: Jump has a sharp requirement, KMeans-on-all barely one.
+**The VAE trades the worst intercept for the shallowest slope** — it needs *more* separation than either baseline at Gaussian tails, and *less* extra separation per unit of kurtosis.
 
-<small>Per-config fits. A law quoted without its target *and* its config is not reproducible.</small>
+- $a$: what the model needs when tails are Gaussian. KMeans is cheapest here, the VAE dearest.
+- $b$: what each unit of kurtosis costs. The VAE is $18\%$ under the Jump/KMeans pair.
 
-**The VAE buys robustness, not peak accuracy — the only survivor at $k \le 3$, never the best at $k \ge 4$.**
+<small>Jump's law here, $0.311 + 0.0609\kappa$, independently reproduces the 38,400-fit jump sweep's $0.312 + 0.0594\kappa$ — different grid, different draws, agreeing to $0.3\%$ on $a$ and $2\%$ on $b$. The framework replicates.</small>
+
+---
+
+## So the ranking is not fixed — it crosses
+
+Required cluster distance at target $0.65$, `clip` $=12$, from the three laws:
+
+| $\kappa$ | VAE | Jump | KMeans | needs least |
+|---|---|---|---|---|
+| 0 | 0.333 | 0.311 | **0.281** | KMeans |
+| 3 | 0.483 | 0.494 | **0.463** | KMeans |
+| 5 | **0.583** | 0.616 | 0.584 | **VAE** |
+| 8 | **0.733** | 0.798 | 0.766 | **VAE** |
+
+$$\textbf{The VAE overtakes Jump at } \kappa = 2.04\textbf{, and KMeans at } \kappa = 4.93.$$
+
+For scale, the benchmark's own $\kappa$ runs $1.6$ at $k=6$ to $5.3$ at $k=2$ — so the crossovers sit **inside** the range the benchmark actually sweeps, not off at its edge. That is why the earlier single-point readings disagreed with each other.
+
+---
+
+## What the VAE actually buys — not accuracy, but a floor
+
+Over all **1,728 fits per model**, the *means* are within two points of each other:
+
+| model | mean bac | sd | $p(\text{bac}>0.6)$ | $\mathbf{p(\text{bac}<0.55)}$ | IQR |
+|---|---|---|---|---|---|
+| **Mixture-VAE** | 0.689 | **0.093** | **0.78** | **0.11** | **0.144** |
+| KMeans++ | 0.683 | 0.118 | 0.72 | 0.28 | 0.257 |
+| Jump | 0.673 | 0.123 | 0.66 | 0.33 | 0.265 |
+
+$$\textbf{Same average accuracy. One third the failure rate.}$$
+
+- The VAE lands near chance on **11%** of the grid; the baselines on **28–33%**. Its inter-quartile range is **44% narrower**.
+- **"The ranking reverses at $k=4$" does not survive the full grid.** Averaged over separation, mean accuracy at `clip` $=12$ tracks within 2–3 points at *every* $k$ — at $k=6$: VAE 0.735, Jump 0.737, KMeans 0.740. The reversal was an artifact of reading one `loc`.
+- What differs between these models is not where they peak. It is **how often they collapse** — which is exactly what a shallower slope buys.
+
+---
+
+## Summary — one law, three models, and what actually separates them
+
+| model | $a + b\,\kappa$ &nbsp;($\kappa \in 0.5-8.1$) | $R^2$ | mean bac | fails ($<0.55$) |
+|---|---|---|---|---|
+| **Mixture-VAE** | $0.333 + \mathbf{0.050}\,\kappa$ | 0.78 | **0.689** | **11%** |
+| Jump (`penalty` $=100$) | $0.311 + 0.061\,\kappa$ | **0.99** | 0.673 | 33% |
+| KMeans++, all 15 features | $\mathbf{0.281} + 0.061\,\kappa$ | 0.65 | 0.683 | 28% |
+
+- **$a$ is nearly a constant of the problem.** **$b$ is what tails cost over the $\kappa$ range you measured it on** — `clip` is not a knob the law responds to, it is **which stretch of a concave curve you explored**. **$R^2$** ranks how threshold-like a model is.
+- The baselines fail for **unrelated** reasons: Jump estimates per-state means in its m-step, so retained outliers corrupt them; KMeans splits on a signal-free volatility axis. Right *feature* beats right *model* — on the six mean features KMeans' slope falls to $0.018$.
+
+$$\textbf{The VAE does not separate regimes better. It fails three times less often.}$$
+
+<small>**Every "dominant knob" here turned out to be local** — each real where first measured, absent on the full grid: *"the ranking reverses at $k=4$"* (accuracy tracks within 2–3 points at every $k$); *"KMeans needs `clip` $\ge 16$"* (flat once pooled); *"the VAE has no threshold"* (it has one, $R^2=0.78$); *"the VAE is capped at $\sim 0.70$"* (max $0.866$). Before calling an axis flat or a model broken, check you are not reading it at one point on a second axis.</small>
 
 ---
 
