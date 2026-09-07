@@ -298,7 +298,13 @@ def main(preset: Optional[Dict] = None, prog: str = 'compare.sweep',
             if missing:
                 p.error(f"{args.out} lacks axis column(s) {sorted(missing)}; "
                         f"its header is {reader.fieldnames}. Use a different --out.")
-            done = {cell_key(axis_names, r) for r in reader if not r.get('error')}
+            # Count only rows for the models actually requested: a file may carry
+            # rows for models no longer in --models (e.g. a baseline that rode along
+            # on an earlier run), which would otherwise overcount `done` and print a
+            # negative row count. Resume identity itself is keyed on model already.
+            wanted = set(args.models)
+            done = {cell_key(axis_names, r) for r in reader
+                    if not r.get('error') and r['model'] in wanted}
 
     todo = []
     for values, rep in itertools.product(combos, range(args.reps)):

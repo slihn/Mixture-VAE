@@ -27,15 +27,25 @@ Because penalty is expected to matter only inside the dead zone, read the result
 reproduces the earlier finding and the axis can be dropped from later runs.
 
 **Cost.** ~17 s per jump fit (vs 274 s for the VAE), so this grid is affordable at a
-size the VAE could never reach. `kmeans` rides along for ~1 s on the *same* draws, so
-the two baselines are compared without the draw confounding them.
+size the VAE could never reach.
+
+**Why `models` is jump-only.** `kmeans` originally rode along for ~1 s on the *same*
+draws, so the two baselines could be compared without the draw confounding them. But
+KMeans ignores `jump_penalty`, and the resume key is `(model, rep) + axis coordinates`
+-- which includes the penalty -- so it was refitted once per penalty and wrote five
+bit-identical rows per draw (40% of the file, verified identical on bac/sd/mad/d_med/
+cdist_mad/kurt for all 3,840 draws). One copy is retained in `data/jump_sweep.csv`,
+tagged `jump_penalty=100`, which still supports the paired same-draws comparison --
+notably that at `jump_penalty` -> 0 the Gamma coupling vanishes and the jump model
+*becomes* KMeans (0.0008 bac apart, corr 0.9990 at 0.03). Widening the grid now fits
+jump only; a KMeans baseline on new cells needs its own run.
 """
 
 from compare import sweep
 
 PRESET = {
     'out': 'data/jump_sweep.csv',
-    'models': ['jump', 'kmeans'],
+    'models': ['jump'],   # see 'Why models is jump-only' above
     'reps': 10,
     'axis': [
         # Dense enough that the threshold is interpolated, not guessed.

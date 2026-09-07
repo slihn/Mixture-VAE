@@ -101,20 +101,23 @@ FEATURE_SETS = {
 }
 
 
-class GAS_SN_Comparator:
-    """Generate a 2-state HMM with GAS-SN emissions and score models by balanced accuracy.
+class GAS_SN_ComparatorBase:
+    """Shared machinery for GAS-SN regime experiments: data generation, feature sets,
+    dataloaders, the four models, scoring and `compare()`.
+
+    Deliberately agnostic about HOW the states are specified -- a subclass supplies
+    `emission_params`, and may override `transition_probs` / `startprob`:
+
+      * `GAS_SN_Comparator`          -- the symmetric benchmark, states at +/- loc
+      * `GAS_SN_Comparator_PerState` -- explicit per-state emissions and transitions
 
     The GAS-SN path in generate_hmm_data is univariate only, hence D == 1.
-
-        cmp = GAS_SN_Comparator()
-        cmp.compare()               # -> DataFrame of balanced accuracy per model
     """
     MODELS = ('vae', 'jump', 'kmeans', 'hmm')
     MAD_SCALE = 1.4826  # 1 / norm.ppf(0.75): makes MAD a consistent estimate of sigma
 
     def __init__(self,
                  T=100008, D=1, num_states=2,
-                 alpha=1.1, k=2.75, beta=0.0, loc=0.001, scale=0.003,
                  stay_prob=0.96, clip_factor=12.0, 
                  chunk_size=1000, seed=42,
                  window_size=500, batch_size=32, train_ratio=0.6, val_ratio=0.2,
@@ -129,13 +132,6 @@ class GAS_SN_Comparator:
         self.T = T
         self.D = D
         self.num_states = num_states
-
-        # alpha=1 recovers student's t; beta=0 is unskewed
-        self.alpha = alpha
-        self.k = k
-        self.beta = beta
-        self.loc = loc
-        self.scale = scale   # the GAS_SN scale parameter, NOT the realized standard deviation
 
         self.stay_prob = stay_prob
         self.clip_factor = clip_factor  # gas-sn tolerates a larger clip factor than t
@@ -188,14 +184,10 @@ class GAS_SN_Comparator:
 
     @property
     def emission_params(self):
-        """One GAS-SN per state, straddling zero at +/- loc."""
-        signs = np.linspace(-1.0, 1.0, self.num_states)
-        return [
-            {'alpha': self.alpha, 'k': self.k, 'beta': self.beta,
-             'loc': sign * self.loc, 'scale': self.scale,
-             'shape': np.eye(self.D) * self.scale ** 2}
-            for sign in signs
-        ]
+        """One emission dict per state. Subclasses decide how the states are formed."""
+        raise NotImplementedError(
+            "use GAS_SN_Comparator (symmetric benchmark) or "
+            "GAS_SN_Comparator_PerState (explicit per-state emissions)")
 
     def generate(self):
         """Sample the hidden states S and observations X."""
@@ -225,8 +217,9 @@ class GAS_SN_Comparator:
 
             (median_1 - median_0) / MAD,   MAD = 1.4826 * median(|x - median(x)|)
 
-        This is what the jump model needs to see: it clusters on levels, so the medians
-        of the states have to stand apart relative to the spread they sit in. MAD is used
+        Always non-negative: it is a distance, independent of which state carries which
+        label. This is what the jump model needs to see: it clusters on levels, so the
+        medians of the states have to stand apart relative to the spread they sit in. MAD is used
         rather than the standard deviation because the GAS-SN tails inflate the latter.
         With more than two states, the outermost states are compared.
         """
@@ -235,7 +228,11 @@ class GAS_SN_Comparator:
         states = np.unique(S)
         medians = [np.median(x[S == state]) for state in (states[0], states[-1])]
         mad = self.MAD_SCALE * np.median(np.abs(x - np.median(x)))
-        return float((medians[1] - medians[0]) / mad)
+        # abs(): this is a DISTANCE, so it must not change sign with the state ordering.
+        # The symmetric benchmark happens to label the lower state 0, making the raw
+        # difference positive; real regimes need not (the S&P500 bear state has the lower
+        # median while carrying label 1, which would otherwise report a negative distance).
+        return float(abs(medians[1] - medians[0]) / mad)
 
     def stats(self):
         """Moments overall and per state -- kurtosis is damped by clip_factor."""
@@ -344,3 +341,101 @@ class GAS_SN_Comparator:
         return (pd.DataFrame({'balanced_accuracy': self.results})
                 .rename_axis('model')
                 .loc[list(models)])
+
+
+class GAS_SN_Comparator(GAS_SN_ComparatorBase):
+    """The symmetric benchmark: every state shares one (alpha, k, beta, scale), placed at
+    +/- loc, with a symmetric transition matrix from `stay_prob`.
+
+    This is the construction the sweeps use. States differ by LOCATION only, with scale
+    held identical -- which is exactly why the scale features are a signal-free control.
+
+        cmp = GAS_SN_Comparator()
+        cmp.compare()               # -> DataFrame of balanced accuracy per model
+    """
+
+    def __init__(self,
+                 T=100008, D=1, num_states=2,
+                 alpha=1.1, k=2.75, beta=0.0, loc=0.001, scale=0.003,
+                 **kwargs):
+        # alpha=1 recovers student's t; beta=0 is unskewed
+        self.alpha = alpha
+        self.k = k
+        self.beta = beta
+        self.loc = loc
+        self.scale = scale   # the GAS_SN scale parameter, NOT the realized standard deviation
+        super().__init__(T=T, D=D, num_states=num_states, **kwargs)
+
+    @property
+    def emission_params(self):
+        """One GAS-SN per state, straddling zero at +/- loc."""
+        signs = np.linspace(-1.0, 1.0, self.num_states)
+        return [
+            {'alpha': self.alpha, 'k': self.k, 'beta': self.beta,
+             'loc': sign * self.loc, 'scale': self.scale,
+             'shape': np.eye(self.D) * self.scale ** 2}
+            for sign in signs
+        ]
+
+
+class GAS_SN_Comparator_PerState(GAS_SN_ComparatorBase):
+    """States specified individually: emissions and transitions are taken verbatim.
+
+    Real regimes are not the benchmark's construction. Fitted to the S&P500 1991-2026 the
+    bull/bear states differ in tail weight (k 10.70 vs 6.70) and scale (2.0x) while their
+    locations nearly coincide -- separating them by x alone is chance-level.
+
+    `emissions` is one dict per state with alpha, k, beta, loc, scale (`shape` derived if
+    absent). `transition` is the full matrix; `startprob` defaults to its STATIONARY
+    distribution, so a run starts in the mix the chain implies rather than uniformly.
+    """
+
+    def __init__(self, emissions, transition=None, startprob=None, **kwargs):
+        self._emissions = [dict(e) for e in emissions]
+        missing = sorted({k for e in self._emissions
+                          for k in ('alpha', 'k', 'beta', 'loc', 'scale') if k not in e})
+        if missing:
+            raise ValueError(f"emission dicts are missing key(s): {missing}")
+        self._transition = None if transition is None else np.asarray(transition, dtype=float)
+        self._startprob = None if startprob is None else np.asarray(startprob, dtype=float)
+        kwargs.setdefault('num_states', len(self._emissions))
+        super().__init__(**kwargs)
+        n = self.num_states
+        if len(self._emissions) != n:
+            raise ValueError(f"{len(self._emissions)} emissions for num_states={n}")
+        if self._transition is not None:
+            if self._transition.shape != (n, n):
+                raise ValueError(f"transition must be {(n, n)}, got {self._transition.shape}")
+            if not np.allclose(self._transition.sum(axis=1), 1.0):
+                raise ValueError("transition rows must each sum to 1")
+
+    @property
+    def emission_params(self):
+        """One GAS-SN per state, exactly as supplied."""
+        out = []
+        for e in self._emissions:
+            d = {k: e[k] for k in ('alpha', 'k', 'beta', 'loc', 'scale')}
+            shape = e.get('shape')
+            d['shape'] = np.eye(self.D) * d['scale'] ** 2 if shape is None else shape
+            out.append(d)
+        return out
+
+    @property
+    def transition_probs(self):
+        return super().transition_probs if self._transition is None else self._transition
+
+    @property
+    def startprob(self):
+        if self._startprob is not None:
+            return self._startprob
+        if self._transition is None:
+            return super().startprob
+        # stationary distribution: left eigenvector of P for eigenvalue 1
+        vals, vecs = np.linalg.eig(self._transition.T)
+        pi = np.abs(np.real(vecs[:, int(np.argmin(np.abs(vals - 1.0)))]))
+        return pi / pi.sum()
+
+    def expected_run_lengths(self):
+        """Mean dwell time in each state, 1 / P(leave)."""
+        p = self.transition_probs
+        return {int(i): float(1.0 / (1.0 - p[i, i])) for i in range(self.num_states)}
