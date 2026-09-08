@@ -126,9 +126,9 @@ style: |
 
 ## Stephen Lihn (2026)
 
-<span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/gas-impl`</span>
+<span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v84
+### ![w:70](assets/tiger.svg) v85
 
 ---
 
@@ -389,6 +389,14 @@ Yuqi's Mixture-VAE code base:
 
 `data_code/synthetic_data.py :: generate_hmm_data(emission_dist='t', clip_factor= ...)`
 
+**Goal:** The state labels are encrypted in the synthetic data via HMM. Model's job is to rediscover the labels.
+
+![w:800](assets/two_states.png)
+
+---
+
+## Mixture-VAE code base
+
 1. **State path.** An `hmmlearn` `CategoricalHMM` with `emissionprob_ = I` emits the hidden path $\{S_t\}$ directly. E.g. Transition matrix `[[0.96, 0.04], [0.04, 0.96]]`, regimes persist ~25 days.
 2. **Emissions** are **i.i.d. within a state** per state, at $\pm\text{loc}$.
 4. **Draw per state.** For each state, draw exactly $\#\{t : S_t = j\}$ values — vectorized, in chunks.
@@ -396,32 +404,28 @@ Yuqi's Mixture-VAE code base:
 
 **Why clip:** Undefined moments in small df for Student-$t$. Yuqi used `clip_factor=10.0`.
 
-### **GAS-SN Enhancement**
+### **GAS-SN Enhancement** 
 
-* `generate_hmm_data(emission_dist='gassn')`
+* `generate_hmm_data(emission_dist='gassn')` at `https://github.com/slihn/Mixture-VAE`
+
 
 ---
 
 ## Cluster distance — between the two states
 
-$$\text{cluster distance} = \frac{|\mathrm{median}_1 - \mathrm{median}_0|}{\mathrm{MAD}}, \qquad \mathrm{MAD} = 1.4826\,\mathrm{median}\big(|x - \mathrm{median}(x)|\big)$$
+$$\text{cluster distance} = \frac{|\mathrm{median}_1 - \mathrm{median}_0|}{\mathrm{MAD}},$$
+
+$$\text{where} \quad \mathrm{MAD} = 1.4826\,\mathrm{median}\big(|x - \mathrm{median}(x)|\big).$$
 
 A better measure of the separation between the two states. It is like the loc/sd, but built from medians — It always exists, and **fat tails cannot move it**. 
 
 Rationale: Inside Yuqi's code, $X$ is z-scored before building a feature, so **only the ratio reaches the model**.
 
-![w:800](assets/two_states.png)
-
 ---
 
-## Global regime - Bull/bear states by jump model
+## Global regime - Bull/bear states by the jump model
 
-**Emissions** — one GAS-SN per state, fitted to the S&P500 daily return, $8{,}962$ days, $1991$–$2026$:
-
-| state | $\alpha$ | $k$ | $\beta$ | scale | loc | sd | $\kappa$ |
-|---|---|---|---|---|---|---|---|
-| **bull** ($S=0$), $66.6\%$ | $0.703$ | $\mathbf{10.70}$ | $0.053$ | $0.00984$ | $+0.00084$ | $0.00722$ | $1.86$ |
-| **bear** ($S=1$), $33.4\%$ | $0.704$ | $\mathbf{6.70}$ | $0.033$ | $\mathbf{0.01984}$ | $-0.00119$ | $0.01672$ | $5.40$ |
+Use the jump model to label the bull/bear states in the S&P500 daily return, $8{,}962$ days, $1991$–$2026$.
 
 <table class="layout"><tr><td width="34%">
 
@@ -439,44 +443,66 @@ $\mathbf{35}$ **bear episodes** over $\mathbf{35}$ years
 
 </td></tr></table>
 
+
+---
+
+## Global regime - GAS-SN fits
+
+**Emission probability** — one GAS-SN per state. Two versions of the fit are used to demonstrate the **negative-$k$** branch:
+
+* positive-$k$: generalized $\alpha$-stable
+* negative-$k$: generalized exponential power (thinner tails)
+
+The difference in the bull state fit is more obvious. The negative-$k$ fit matches the peak density to $+0.08\%$, where the positive-$k$ fit was $10.9\%$ low.
+
+| state | fit | $\alpha$ | $k$ | $\beta$ | scale | loc | sd | $\kappa$ |
+|---|---|---|---|---|---|---|---|---|
+| **bull** ($S=0$), $66.6\%$ | V1 | $0.703$ | $10.70$ | $0.053$ | $0.00984$ | $+0.00084$ | $0.00722$ | $1.86$ |
+| | **V2** | $0.89$ | $\mathbf{-3.23}$ | $0.045$ | $0.00536$ | $+0.00089$ | $0.00722$ | $1.86$ |
+| **bear** ($S=1$), $33.4\%$ | V1 | $0.704$ | $6.70$ | $0.033$ | $0.01984$ | $-0.00119$ | $0.01672$ | $5.40$ |
+| | **V2** | $0.50$ | $8.91$ | $0.031$ | $0.04556$ | $-0.00117$ | $0.01672$ | $5.41$ |
+
 ---
 
 ## Global regime - daily return histogram vs theoretical from fits
 
-![w:1200](assets/global_regime_gassn_fit.png)
+![w:1000](assets/global_regime_gassn_fit_V2.png)
 
-Simulating from these fits reproduces the real series — bear share $0.337$ vs $0.334$, per-state sd $0.00722 / 0.01675$ vs $0.00722 / 0.01672$, pooled $\kappa$ $9.96$ vs $10.77$.
+Simulating from the fits reproduces the real series on share and scale — bear share $0.337$ vs $0.334$.
+
+<small>Pooled $\kappa$ is $8.42$ (V2) and $9.96$ (V1) vs $10.77$, but that gap is **finite-sample noise, not a defect of either fit**: the bear state's 4th moment rides on a handful of extreme draws, and one fit returns $\kappa$ anywhere from $4.1$ to $8.1$ across draws.</small>
 
 ---
 
 ## Global regime - model output
 
-$$\textbf{Cluster distance is only } 0.246 \textbf{ MAD — yet Jump scores } 0.91.$$
+$$\textbf{Cluster distance is only } 0.254 \textbf{ MAD — yet Jump scores } 0.92.$$
 
 Feeding those emissions and that transition matrix through the same comparator, $T = 100{,}008$:
 
-
-| model | balanced accuracy |
-|---|---|
-| **Jump** | $\mathbf{0.9117}$ |
-| Mixture-VAE | $0.8536$ |
-| KMeans++ | $0.8145$ |
-| Gaussian-HMM | $0.5000$ |
-
+| model | **V2** | V1 |
+|---|---|---|
+| **Jump** | $\mathbf{0.9246}$ | $0.9117$ |
+| Mixture-VAE | $0.8613$ | $0.8536$ |
+| KMeans++ | $0.8269$ | $0.8145$ |
+| Gaussian-HMM | $0.5000$ | $0.5006$ |
 
 - All three ML models score very high.
 - **HMM fails outright** ($0.5000$, "model is not converging"), rather than merely trailing.
 - Jump ran at `jump_penalty` $=100$ to match the original notebook.
+- Emissions clipped at $\pm 20$ **sd**. So V1 and V2 are a controlled comparison.
+- V2 lifts all three working models by $\approx 0.01$, tracking its larger cluster distance ($0.254$ vs $0.246$).
+
 
 ---
 
 ## Summary on global regime
 
 - Used the jump model to label the bull/bear states since 1991. $35$ bear episodes.
-- Fit each state with GAS-SN.
+- Fit each state with GAS-SN. Two versions are provided.
 - Used GAS-SN as the emission distribution to generate synthetic data.
 - Ran four models (Jump, KMeans++, Mixture-VAE, HMM) to label the synthetic data.
-- ML model accuracy is high. Jump stands out at $0.91$. HMM fails at $0.50$.
+- ML model accuracy is high. Jump stands out at $0.92$. HMM fails at $0.50$.
 - A smaller cluster distance is not an obstacle.
 
 $$\textbf{These states separate by scale, in addition to opposite locations.}$$
