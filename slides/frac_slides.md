@@ -128,7 +128,7 @@ style: |
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v88
+### ![w:70](assets/tiger.svg) v89
 
 ---
 
@@ -432,7 +432,10 @@ Use the jump model to label the bull/bear states in the S&P500 daily return, $8{
 
 **Transition**
 
-$$\begin{pmatrix}0.9940 & 0.0060\cr 0.0116 & 0.9884\end{pmatrix}$$
+| | bull | bear |
+|---|---|---|
+| **bull** | 0.9940 | 0.0060 |
+| **bear** | 0.0116 | 0.9884 |
 
 stationary $(0.659,\thinspace 0.341)$
 
