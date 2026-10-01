@@ -332,7 +332,7 @@ $$Z = \begin{cases} X_0 & \text{if } X_1 > \beta^{\intercal} X_0 \cr -X_0 & \tex
 
 A two-sided distribution is assembled as a **ratio** $Z / \mathrm{TS}(\cdot)$ or a **product** $Z \times \mathrm{TS}(\cdot)$.
 
-The **crown jewel** is the skew multivariate elliptical distribution, based on the ratio
+The **crown jewel** is the **skew multivariate elliptical** distribution, based on the ratio
 
 $$SN_d(0,\bar\Omega,\beta)/\chi_{\alpha,k}.$$
 
@@ -348,15 +348,15 @@ $$L_{\alpha,k}(x;\beta) = 2\int_0^\infty \mathcal{N}(xs)\thinspace \Phi_{\mathca
 
 It is a **continuous Gaussian mixture** — one normal per value of the mixing variable $V$.
 
-What it subsumes:
+$\alpha$ and $k$ control the tail **independently** — that is the gain over Student-*t*. What it subsumes:
 
 | Limit | Reduces to |
 |---|---|
-| $\beta = 0$ | GSaS $L_{\alpha,k}$ — the symmetric case |
+| $\beta = 0$ |  The symmetric dist, called "GSaS", $L_{\alpha,k}$ |
 | $\alpha = 1$ | Azzalini's **skew-*t***: $T(\beta,k) = L_{1,k}(\beta)$ |
 | $\alpha \to 2$ or $k \to \infty$ | the normal distribution $\mathcal{N}(0,1)$ |
 
-$\alpha$ and $k$ control the tail **independently** — that is the modelling gain over Student-*t*.
+
 
 ---
 
@@ -386,7 +386,7 @@ The `rvs` generator is *not* the bottleneck in the benchmark anymore.
 
 ## From variates to to synthetic regime data
 
-Yuqi's Mixture-VAE code base:
+Yuqi's Mixture-VAE code base: (Nie, Mulvey, Poor, Yu & Huang (2026))
 
 `data_code/synthetic_data.py :: generate_hmm_data(emission_dist='t', clip_factor= ...)`
 
