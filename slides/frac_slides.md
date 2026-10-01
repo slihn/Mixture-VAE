@@ -128,7 +128,7 @@ style: |
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v87
+### ![w:70](assets/tiger.svg) v88
 
 ---
 
@@ -187,7 +187,7 @@ $$\mathbb{E}\left[e^{-t L_\alpha}\right] = e^{-t^{\alpha}}, \qquad t \ge 0.$$
 
 The polynomial tilt $\beta$ is added to the density $L_\alpha(x)$ of $L_\alpha$ as
 
-$$f_{T_{\alpha,\beta}}(x) \thickspace \propto\thickspace x^{-\beta} L_\alpha(x), \qquad x>0.$$
+$$f_{T_{\alpha,\beta}}(x) \mskip5mu \propto\mskip5mu x^{-\beta} L_\alpha(x), \qquad x>0.$$
 
 ---
 
@@ -227,7 +227,7 @@ $$\frac{K_n}{n^{\alpha}} \longrightarrow T^{-\alpha}_{\alpha,\beta}$$
 
 The superscript (exponent) is generalized to $T^{-\gamma}_{\alpha,\beta}$ with $\gamma \in \mathbb{R}$ in Devroye (2009):
 
-$$\mathrm{TS}(\alpha, \beta, \gamma) \thickspace :=\thickspace T^{-\gamma}_{\alpha,\beta} = (T_{\alpha,\beta})^{-\gamma}$$
+$$\mathrm{TS}(\alpha, \beta, \gamma) \mskip5mu :=\mskip5mu T^{-\gamma}_{\alpha,\beta} = (T_{\alpha,\beta})^{-\gamma}$$
 
 - $\gamma > 0$ — represents a **local time** process
 - $\gamma < 0$ — represents a **volatility** process
@@ -260,7 +260,7 @@ The **bridge** to the fractional distribution -
 
 ## FG: The fractional gamma — Overview (Ch. 6)
 
-$$N_\alpha(x;\sigma,d,p) \thickspace :=\thickspace C\left(\frac{x}{\sigma}\right)^{d-1} F_\alpha\negthinspace \left(\left(\frac{x}{\sigma}\right)^{p}\right), \qquad x \ge 0$$
+$$N_\alpha(x;\sigma,d,p) \mskip5mu :=\mskip5mu C\left(\frac{x}{\sigma}\right)^{d-1} F_\alpha\negthinspace \left(\left(\frac{x}{\sigma}\right)^{p}\right), \qquad x \ge 0$$
 
 where $F_\alpha(x) := W_{-\alpha,0}(-x) = \alpha x M_\alpha(x)$ is the Wright function of the second kind.
 
@@ -279,9 +279,9 @@ $$C = \frac{|p|}{\sigma}\thinspace \frac{\Gamma(\alpha d/p)}{\Gamma(d/p)} \quad 
 
 Let $X \sim N_\alpha(\sigma,d,p)$. Then
 
-$$\boxed{\thickspace X = \sigma\thinspace T^{-\alpha/p}_{\alpha,\thickspace \alpha d/p}\thickspace }$$
+$$\boxed{\mskip5mu X = \sigma\thinspace T^{-\alpha/p}_{\alpha,\mskip5mu \alpha d/p}\mskip5mu }$$
 
-i.e. $\thickspace \beta = \alpha d/p\thickspace$ and $\thickspace \gamma = \alpha/p$.
+i.e. $\mskip5mu \beta = \alpha d/p\mskip5mu$ and $\mskip5mu \gamma = \alpha/p$.
 
 This is the most important finding of the work. Everything downstream — FCM, FCM2, fractional $F$, GSaS, GAS-SN — inherits both its **analytics** (Mellin transform, moments) and its **sampler** from this one line.
 
@@ -312,7 +312,7 @@ $$\chi_{\alpha,k}(x) := N_{\alpha/2}\big(x;\ \sigma = \sigma_{\alpha,k},\ d = k-
 
 Apply $\beta = \alpha d/p$, $\gamma = \alpha/p$ with $\alpha \to \alpha/2$, $d = k-1$, $p = \alpha$:
 
-$$\boxed{\thickspace \chi_{\alpha,k} = \sigma_{\alpha,k}\thinspace T^{-1/2}_{\alpha/2,\ (k-1)/2}\thickspace }\qquad \text{(Sec. 7.2.1)}$$
+$$\boxed{\mskip5mu \chi_{\alpha,k} = \sigma_{\alpha,k}\thinspace T^{-1/2}_{\alpha/2,\ (k-1)/2}\mskip5mu }\qquad \text{(Sec. 7.2.1)}$$
 
 which is exactly **the FCM row of Table 1**. 
 
@@ -342,7 +342,7 @@ $$SN_d(0,\bar\Omega,\beta)/\chi_{\alpha,k}.$$
 
 Definition 12.1: Let $Z \sim SN(0,1,\beta)$ and $V \sim \chi_{\alpha,k}$. Then
 
-$$\boxed{\thickspace X = Z / V \thickspace \sim\thickspace L_{\alpha,k}(\beta)\thickspace }$$
+$$\boxed{\mskip5mu X = Z / V \mskip5mu \sim\mskip5mu L_{\alpha,k}(\beta)\mskip5mu }$$
 
 $$L_{\alpha,k}(x;\beta) = 2\int_0^\infty \mathcal{N}(xs)\thinspace \Phi_{\mathcal N}(\beta x s)\thinspace \chi_{\alpha,k}(s)\thinspace s\thinspace ds$$
 
@@ -353,7 +353,7 @@ What it subsumes:
 | Limit | Reduces to |
 |---|---|
 | $\beta = 0$ | GSaS $L_{\alpha,k}$ — the symmetric case |
-| $\alpha = 1$ | Azzalini's **skew-$t$**: $T(\beta,k) = L_{1,k}(\beta)$ |
+| $\alpha = 1$ | Azzalini's **skew-*t***: $T(\beta,k) = L_{1,k}(\beta)$ |
 | $\alpha \to 2$ or $k \to \infty$ | the normal distribution $\mathcal{N}(0,1)$ |
 
 $\alpha$ and $k$ control the tail **independently** — that is the modelling gain over Student-*t*.
@@ -400,7 +400,7 @@ Yuqi's Mixture-VAE code base:
 
 1. **State path.** An `hmmlearn` `CategoricalHMM` with `emissionprob_ = I` emits the hidden path $\lbrace S_t\rbrace$ directly. E.g. Transition matrix `[[0.96, 0.04], [0.04, 0.96]]`, regimes persist ~25 days.
 2. **Emissions** are **i.i.d. within a state** per state, at $\pm\text{loc}$.
-4. **Draw per state.** For each state, draw exactly $\lvert\lbrace t : S_t = j\rbrace\rvert$ values — vectorized, in chunks.
+4. **Draw per state.** For each state, draw exactly $\vert\lbrace t : S_t = j\rbrace\vert$ values — vectorized, in chunks.
 5. **Clip by rejection.** Samples outside $\text{loc} \pm$ `clip_factor` $\times$ **scale** are rejected and redrawn.
 
 **Why clip:** Undefined moments in small df for Student-*t*. Yuqi used `clip_factor=10.0`.
@@ -426,7 +426,7 @@ Rationale: Inside Yuqi's code, $X$ is z-scored before building a feature, so **o
 
 ## Global regime - Bull/bear states by the jump model
 
-Use the jump model to label the bull/bear states in the S&P500 daily return, $8{,}962$ days, $1991$–$2026$.
+Use the jump model to label the bull/bear states in the S&P500 daily return, $8{,}962$ days, $1991\text{–}2026$.
 
 <table class="layout"><tr><td width="34%">
 
@@ -449,12 +449,12 @@ $\mathbf{35}$ **bear episodes** over $\mathbf{35}$ years
 
 ## Global regime - GAS-SN fits
 
-**Emission probability** — one GAS-SN per state. Two versions of the fit are used to demonstrate the **negative-$k$** branch:
+**Emission probability** — one GAS-SN per state. Two versions of the fit are used to demonstrate the **negative-*k*** branch:
 
-* positive-$k$: generalized $\alpha$-stable
-* negative-$k$: generalized exponential power (thinner tails)
+* positive-*k*: generalized $\alpha$-stable
+* negative-*k*: generalized exponential power (thinner tails)
 
-The difference in the bull state fit is more obvious. The negative-$k$ fit matches the peak density to $+0.08$%, where the positive-$k$ fit was $10.9$% low.
+The difference in the bull state fit is more obvious. The negative-*k* fit matches the peak density to $+0.08$%, where the positive-*k* fit was $10.9$% low.
 
 | state | fit | $\alpha$ | $k$ | $\beta$ | scale | loc | sd | $\kappa$ |
 |---|---|---|---|---|---|---|---|---|
@@ -606,13 +606,13 @@ Balanced accuracy on the held-out test split, 10 replicates at `seed=rep` — wh
 
 For each $(\alpha,k, \text{clip})$ cell, take its **cluster distance threshold** $\mathcal{D}$ — where replicate-mean accuracy first reaches the target ($0.65$)— and regress it on that cell's excess kurtosis $\kappa$:
 
-$$\boxed{\thickspace \mathcal{D} \thickspace =\thickspace a \thickspace +\thickspace b \thinspace \kappa\thickspace }$$
+$$\boxed{\mskip5mu \mathcal{D} \mskip5mu =\mskip5mu a \mskip5mu +\mskip5mu b \thinspace \kappa\mskip5mu }$$
 
 - **Intercept $a$:** with Gaussian tails, how many robust widths apart the clusters must sit.
 - **Slope $b$:** what one unit of excess kurtosis costs in extra cluster distance.
 - **$\alpha$ and $k$ do not disappear into $\kappa$.** The line is a **reduced form, not a sufficient statistic**.
 
-**`clip` and `jump_penalty` are *not* absorbed** — they parameterize the law rather than acting through $\kappa$. Pool over them and $R^2$ falls to $0.48$; pooling all nine (model, `clip`) configs gives $0.56$, against $0.65$–$0.99$ *within* a config.
+**`clip` and `jump_penalty` are *not* absorbed** — they parameterize the law rather than acting through $\kappa$. Pool over them and $R^2$ falls to $0.48$; pooling all nine (model, `clip`) configs gives $0.56$, against $0.65\text{–}0.99$ *within* a config.
 
 $$\textbf{A quoted law is } (a, b) \textbf{ plus its target and the } \kappa \textbf{ domain it was fitted over.}$$
 
@@ -635,7 +635,7 @@ Fitting the law **nine times at target $0.65$** — three models $\times$ $3$ `c
 
 ## `clip` is not a setting — it selects the $(\alpha, k, \kappa)$ region you sample
 
-All $140$ cells, four `clip` values, one intercept per model; centred at $\alpha=1.6$, $k=6$, `clip`$=12$ (where $\kappa \approx 0.5$):
+All $140$ cells, four `clip` values, one intercept per model; centred at $\alpha=1.6$, $k=6$, `clip` $=12$ (where $\kappa \approx 0.5$):
 
 <table class="layout"><tr><td width="34%">
 
@@ -658,7 +658,7 @@ All $140$ cells, four `clip` values, one intercept per model; centred at $\alpha
 
 $$\textbf{Quoting a law means naming } (\alpha, k, \kappa)\textbf{, not the } \texttt{clip} \textbf{ that reached them.}$$
 
-<small>*Source: `data/vae_sweep.csv` + `data/vae_sweep_clip18.csv`; $6{,}912$ fits, $140$ threshold cells.*</small>
+<small>*Source: `data/vae_sweep.csv` + `data/vae_sweep_clip18.csv`;* $6{,}912$ *fits,* $140$ *threshold cells.*</small>
 
 ---
 
@@ -668,7 +668,7 @@ $\kappa$ summarises what $(\alpha, k)$ generate, so regressing on it **alone** l
 
 <table class="layout"><tr><td width="45%">
 
-$$b_{\text{marginal}} \thickspace =\thickspace \underbrace{b_\kappa}_{\substack{\text{partial:}\cr \alpha,\thinspace k\ \text{held fixed}}} \thickspace +\thickspace b_\alpha\thinspace \delta_\alpha \thickspace +\thickspace b_k\thinspace \delta_k \thickspace \thickspace \thickspace \thickspace$$
+$$b_{\text{marginal}} \mskip5mu =\mskip5mu \underbrace{b_\kappa}_{\substack{\text{partial:}\cr \alpha,\thinspace k\ \text{held fixed}}} \mskip5mu +\mskip5mu b_\alpha\thinspace \delta_\alpha \mskip5mu +\mskip5mu b_k\thinspace \delta_k \mskip5mu \mskip5mu \mskip5mu \mskip5mu$$
 
 </td><td width="55%">
 
@@ -700,7 +700,7 @@ The Jump model's `jump_penalty` $\lambda$ is a **flat cost per switch**, a persi
 
 $$\textbf{Every Jump number in this deck was run at } \lambda = 100 \textbf{ — the worst of the five.}$$
 
-<small>*Source: `data/jump_sweep.csv` — $19{,}200$ Jump fits over $5$ penalties.*</small>
+<small>*Source: `data/jump_sweep.csv` —* $19{,}200$ *Jump fits over* $5$ *penalties.*</small>
 
 ---
 
@@ -736,7 +736,7 @@ $$\textbf{Restricted to the six means: } p(\text{bac}>0.65) = 1.00 \textbf{ at e
 - $b$: what each unit of kurtosis costs. The VAE's $0.050$ against $0.061$ for both baselines — **$18$% shallower**.
 - $R^2$: how completely $\kappa$ *alone* predicts the threshold — how **threshold-like** the model is.
 
-<small>*Source: `data/vae_sweep.csv` at `clip`$=12$, one draw per cell.* Jump's law here reproduces the penalty sweep's $0.312 + 0.0594\kappa$ on a different grid — agreeing to $0.3$% on $a$, $2$% on $b$. **The framework replicates.**</small>
+<small>*Source: `data/vae_sweep.csv` at `clip`* $=12$, *one draw per cell.* Jump's law here reproduces the penalty sweep's $0.312 + 0.0594\kappa$ on a different grid — agreeing to $0.3$% on $a$, $2$% on $b$. **The framework replicates.**</small>
 
 ---
 
@@ -767,7 +767,7 @@ For scale, the benchmark's own $\kappa$ runs $1.6$ at $k=6$ to $5.3$ at $k=2$; a
 
 $$\textbf{The VAE does not separate regimes better. It fails three times less often.}$$
 
-<small>**Every "dominant knob" here turned out to be local** — real where first measured, absent on the full grid: the $k=4$ reversal, *KMeans needs* `clip` $\ge 16$, *the VAE caps at $0.70$*.</small>
+<small>**Every "dominant knob" here turned out to be local** — real where first measured, absent on the full grid: the $k=4$ reversal, *KMeans needs* `clip` $\ge 16$, *the VAE caps at* $0.70$.</small>
 
 ---
 
@@ -796,10 +796,10 @@ $$\textbf{Same average accuracy. One third the failure rate.}$$
 | CSV | fits | models $\times$ reps | swept | **pinned** |
 |---|---|---|---|---|
 | `vae_sweep.csv` | $5{,}184$ | $3 \times 6$ | `loc`(8) $\alpha$(3) $k$(4) `clip`(8,12,20) | $\lambda=100$, `features=all` |
-| `vae_sweep_clip18.csv` | $1{,}728$ | $3 \times 6$ | `loc`(8) $\alpha$(3) $k$(4) | `clip`$18$, $\lambda100$, `all` |
+| `vae_sweep_clip18.csv` | $1{,}728$ | $3 \times 6$ | `loc`(8) $\alpha$(3) $k$(4) | `clip` $18$, $\lambda100$, `all` |
 | `jump_sweep.csv` | $23{,}040$ | jump+kmeans $\times\ 10$ | `loc`(8) $\alpha$(4) $k$(4) `clip`(8,12,20) **$\lambda$(5)** | `features=all` |
 | `kmeans_sweep.csv` | $40{,}960$ | kmeans $\times\ 20$ | `loc`(8) $\alpha$(4) $k$(4) `clip`(10,12,16,20) **`features`(4)** | — |
-| `jump_loc_sweep` + `jump_moments` | $1{,}760$ | jump $\times\ 10$ | `loc`(11) $\alpha$(4) $k$(4) | `clip`$=12$, $\lambda=100$ |
+| `jump_loc_sweep` + `jump_moments` | $1{,}760$ | jump $\times\ 10$ | `loc`(11) $\alpha$(4) $k$(4) | `clip` $=12$, $\lambda=100$ |
 
 $$\textbf{Each model's own knob is pinned at its default in every file except the one that studies it.}$$
 
@@ -807,7 +807,7 @@ $$\textbf{Each model's own knob is pinned at its default in every file except th
 
 - $\lambda = 100$ everywhere but `jump_sweep.csv` — the **worst** of the five, so every headline Jump score **understates Jump by $\approx 0.045$ bac**.
 - `feature_set = all` everywhere but `kmeans_sweep.csv` — **understating KMeans by $0.031$ bac** against `means_x`.
-- The VAE's own knobs (`lamda_t`$=4.0$, `vae_epochs`$=500$) are pinned in **every** file — never swept, at $274$ s/fit.
+- The VAE's own knobs (`lamda_t` $=4.0$, `vae_epochs` $=500$) are pinned in **every** file — never swept, at $274$ s/fit.
 
 </div>
 
@@ -818,6 +818,6 @@ $$\textbf{Each model's own knob is pinned at its default in every file except th
 - **fracdist** — *Fractional Distributions*, Ch. 1.2 (elements & Table 1), Ch. 6 (FG and the inverse tilted stable law), Ch. 7 (FCM), Ch. 12 (GAS-SN). `github.com/slihn/gas-impl/tree/main/docs`
 - Pitman & Yor — Poisson–Dirichlet, the two-parameter CRP, and the $\alpha$-diversity limit.
 - Devroye / Kanter / Zolotarev — the stable-law sampling representation behind Lemma 6.2.
-- Azzalini (2013) — the skew-normal and skew-$t$ blueprint (selective sampling, $SN_d$).
+- Azzalini (2013) — the skew-normal and skew-*t* blueprint (selective sampling, $SN_d$).
 - Nie, Mulvey, Poor, Yu & Huang (2026) — *Deep generative models meet statistical methods: a generalized framework for financial regime identification*, **Annals of Operations Research** (in press). Code: `github.com/yuqinie98/Mixture-VAE` — the model and benchmark this work builds on.
 
