@@ -121,14 +121,16 @@ style: |
 
 ## From the Chinese Restaurant to Synthetic Regime Data
 
-**Two foundational elements in stochastic theory**
+
+**Two foundational elements in stochastic theory** 
+leading to
 **The fractional distributions that we can train regime models on**
 
 ## Stephen Lihn (2026)
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v89
+### ![w:70](assets/tiger.svg) v93
 
 ---
 
@@ -465,6 +467,24 @@ The difference in the bull state fit is more obvious. The negative-*k* fit match
 | | **V2** | $0.89$ | $\mathbf{-3.23}$ | $0.045$ | $0.00536$ | $+0.00089$ | $0.00722$ | $1.86$ |
 | **bear** ($S=1$), $33.4$% | V1 | $0.704$ | $6.70$ | $0.033$ | $0.01984$ | $-0.00119$ | $0.01672$ | $5.40$ |
 | | **V2** | $0.50$ | $8.91$ | $0.031$ | $0.04556$ | $-0.00117$ | $0.01672$ | $5.41$ |
+
+---
+
+## Global regime - Bear state needs the low-alpha fit
+
+The MLLK fit near $\alpha = 1$ results in blowup of kurtosis (reason why clip is needed in *t*). 
+
+**$c^{\ast}$** is the distance from the mean at which the fitted model's 4th moment, counted only inside $\pm c^{\ast}$, reaches the data's full $\mu_4/\sigma^4 = 8.40$ (excess $\kappa = 5.40$). Beyond $c^{\ast}$ is **the rest**: kurtosis that no observed day accounts for. The largest observed bear move is $0.1166$.
+
+| $\alpha$ | $k$ | MLLK | $c^{\ast}$ | $c^{\ast}$ in model sd | $\mu_4$ beyond $c^{\ast}$ | share of model $\mu_4$ | expected days beyond $c^{\ast}$ |
+|---|---|---|---|---|---|---|---|
+| $0.50$ (**V2**) | $8.91$ | $1.34291$ | $0.856$ | $51.2$ | $0.01$ | $0.1$% | $0.00$ |
+| $0.60$ | $7.22$ | $1.34212$ | $0.245$ | $14.7$ | $0.95$ | $10.1$% | $0.02$ |
+| $0.70$ (~V1) | $6.06$ | $1.34200$ | $0.208$ | $12.5$ | $2.37$ | $22.0$% | $0.07$ |
+| $0.80$ | $5.17$ | $1.34189$ | $0.190$ | $11.3$ | $5.37$ | $39.0$% | $0.16$ |
+| $0.95$ | $4.17$ | $1.34180$ | $0.176$ | $10.4$ | $50.66$ | $85.8$% | $0.36$ |
+
+$c^{\ast}$ lies beyond every observed day at every $\alpha > 0.5$. As $\alpha$ rises, the model's kurtosis moves into the unobserved region.
 
 ---
 
