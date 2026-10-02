@@ -130,7 +130,7 @@ leading to
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v95
+### ![w:70](assets/tiger.svg) v96
 
 ---
 
@@ -502,7 +502,7 @@ $c^{\ast}$ lies beyond every observed day at every $\alpha > 0.5$. As $\alpha$ r
 
 ## Global regime - Is the bear state a lognormal-normal distribution (LNN) ?
 
-Take a bold limiting jump. Let $\alpha \to 0$ and $|k| \to \infty$ with $T$ fixed, i.e. $\alpha \approx 1/(T|k|)$. And let $V \sim \bar\chi_{\alpha,k}$, then:
+Take a bold limiting jump. Let $\alpha \to 0$ and $|k| \to \infty$ with $T \approx 1/(\alpha |k|)$ fixed. And let $V \sim \bar\chi_{\alpha,k}$, then:
 
 * $V$ becomes a lognormal: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
 * Symmetric GAS-SN becomes an LNN: $X \sim Z \thinspace \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
