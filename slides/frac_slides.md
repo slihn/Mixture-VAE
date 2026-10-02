@@ -493,7 +493,7 @@ $c^{\ast}$ lies beyond every observed day at every $\alpha > 0.5$. As $\alpha$ r
 Let $V \sim \bar\chi_{\alpha,k}$. And let $\alpha \to 0$ and $|k| \to \infty$ with $T$ fixed, i.e. $\alpha \approx 1/(T|k|)$. Then,
 
 * $V$ becomes a lognormal: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
-* Symmetric GAS-SN becomes an LNN: $X \sim Z \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
+* Symmetric GAS-SN becomes an LNN: $X \sim Z \thinspace \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
 
 ### Data evidence
 
