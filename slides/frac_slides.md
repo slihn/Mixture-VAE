@@ -130,7 +130,7 @@ leading to
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v93
+### ![w:70](assets/tiger.svg) v95
 
 ---
 
@@ -485,6 +485,25 @@ The MLLK fit near $\alpha = 1$ results in blowup of kurtosis (reason why clip is
 | $0.95$ | $4.17$ | $1.34180$ | $0.176$ | $10.4$ | $50.66$ | $85.8$% | $0.36$ (bad) |
 
 $c^{\ast}$ lies beyond every observed day at every $\alpha > 0.5$. As $\alpha$ rises, the model's kurtosis moves into the unobserved region.
+
+---
+
+## Global regime - Is the bear state a lognormal-normal distribution (LNN) ?
+
+Let $V \sim \bar\chi_{\alpha,k}$. And let $\alpha \to 0$ and $|k| \to \infty$ with $T$ fixed, i.e. $\alpha \approx 1/(T|k|)$. Then,
+
+* $V$ becomes a lognormal: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
+* Symmetric GAS-SN becomes an LNN: $X \sim Z \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
+
+### Data evidence
+
+Bear state's excess kurtosis $\kappa = 5.40$ and standardized peak density (SPD = $0.587$, but noisy) matches LNN's theoretical formula nicely:
+
+$$1 + \frac{\kappa}{3} = \left(\sqrt{2\pi}\thinspace\mathrm{SPD}\right)^{8/3}
+\qquad (\text{at} \thinspace T = 0.257 \approx 1/4)
+$$
+
+<small>(LNN: Clark (1973); Tauchen & Pitts (1983). Not in scipy. But it has a deep connection to this work.)</small>
 
 ---
 
