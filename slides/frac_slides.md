@@ -468,11 +468,23 @@ The difference in the bull state fit is more obvious. The negative-*k* fit match
 | **bear** ($S=1$), $33.4$% | V1 | $0.704$ | $6.70$ | $0.033$ | $0.01984$ | $-0.00119$ | $0.01672$ | $5.40$ |
 | | **V2** | $0.50$ | $8.91$ | $0.031$ | $0.04556$ | $-0.00117$ | $0.01672$ | $5.41$ |
 
+
+---
+
+## Global regime - daily return histogram vs theoretical from fits
+
+![w:1000](assets/global_regime_gassn_fit_V2.png)
+
+Simulating from the fits reproduces the real series on share and scale — bear share $0.337$ vs $0.334$.
+
+<small>Pooled $\kappa$ is $8.42$ (V2) and $9.96$ (V1) vs $10.77$, but that gap is **finite-sample noise, not a defect of either fit**: the bear state's 4th moment rides on a handful of extreme draws, and one fit returns $\kappa$ anywhere from $4.1$ to $8.1$ across draws.</small>
+
+
 ---
 
 ## Global regime - Bear state needs the low-alpha fit
 
-The MLLK fit near $\alpha = 1$ results in blowup of kurtosis (reason why clip is needed in *t*). 
+The MLLK fits tend to favor lower $\alpha$ and higher $k$. So we study it more (this slide and next). 
 
 **$c^{\ast}$** is the distance from the mean at which the fitted model's 4th moment, counted only inside $\pm c^{\ast}$, reaches the data's full $\mu_4/\sigma^4 = 8.40$ (excess $\kappa = 5.40$). Beyond $c^{\ast}$ is **the rest**: kurtosis that no observed day accounts for. The largest observed bear move is $0.1166$.
 
@@ -490,7 +502,7 @@ $c^{\ast}$ lies beyond every observed day at every $\alpha > 0.5$. As $\alpha$ r
 
 ## Global regime - Is the bear state a lognormal-normal distribution (LNN) ?
 
-Let $V \sim \bar\chi_{\alpha,k}$. And let $\alpha \to 0$ and $|k| \to \infty$ with $T$ fixed, i.e. $\alpha \approx 1/(T|k|)$. Then,
+Take a bold limiting jump. Let $\alpha \to 0$ and $|k| \to \infty$ with $T$ fixed, i.e. $\alpha \approx 1/(T|k|)$. And let $V \sim \bar\chi_{\alpha,k}$, then:
 
 * $V$ becomes a lognormal: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
 * Symmetric GAS-SN becomes an LNN: $X \sim Z \thinspace \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
@@ -504,16 +516,6 @@ $$1 + \frac{\kappa}{3} = \left(\sqrt{2\pi}\thinspace\mathrm{SPD}\right)^{8/3}
 $$
 
 <small>(LNN: Clark (1973); Tauchen & Pitts (1983). Not in scipy. But it has a deep connection to this work.)</small>
-
----
-
-## Global regime - daily return histogram vs theoretical from fits
-
-![w:1000](assets/global_regime_gassn_fit_V2.png)
-
-Simulating from the fits reproduces the real series on share and scale — bear share $0.337$ vs $0.334$.
-
-<small>Pooled $\kappa$ is $8.42$ (V2) and $9.96$ (V1) vs $10.77$, but that gap is **finite-sample noise, not a defect of either fit**: the bear state's 4th moment rides on a handful of extreme draws, and one fit returns $\kappa$ anywhere from $4.1$ to $8.1$ across draws.</small>
 
 ---
 
