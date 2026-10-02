@@ -130,7 +130,7 @@ leading to
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v96
+### ![w:70](assets/tiger.svg) v97
 
 ---
 
@@ -285,7 +285,9 @@ $$\boxed{\mskip5mu X = \sigma\thinspace T^{-\alpha/p}_{\alpha,\mskip5mu \alpha d
 
 i.e. $\mskip5mu \beta = \alpha d/p\mskip5mu$ and $\mskip5mu \gamma = \alpha/p$.
 
-This is the most important finding of the work. Everything downstream — FCM, FCM2, fractional $F$, GSaS, GAS-SN — inherits both its **analytics** (Mellin transform, moments) and its **sampler** from this one line.
+* The polynomial tilt $\beta$ is the "degree of freedom" parameter in FG and $\chi$.
+
+This mapping is an important finding. Everything downstream — FCM, FCM2, fractional $F$, GSaS, GAS-SN — inherits both its **analytics** (Mellin transform, moments) and its **sampler** from this one line.
 
 ---
 
@@ -482,9 +484,9 @@ Simulating from the fits reproduces the real series on share and scale — bear 
 
 ---
 
-## Global regime - Bear state needs the low-alpha fit
+## Global regime - Bear state favors the low-alpha fit
 
-The MLLK fits tend to favor lower $\alpha$ and higher $k$. So we study it more (this slide and next). 
+The MLLK fit tends to favor lower $\alpha$ and higher $k$. So we study it more (this slide and next). 
 
 **$c^{\ast}$** is the distance from the mean at which the fitted model's 4th moment, counted only inside $\pm c^{\ast}$, reaches the data's full $\mu_4/\sigma^4 = 8.40$ (excess $\kappa = 5.40$). Beyond $c^{\ast}$ is **the rest**: kurtosis that no observed day accounts for. The largest observed bear move is $0.1166$.
 
@@ -545,6 +547,7 @@ Feeding those emissions and that transition matrix through the same comparator, 
 
 - Used the jump model to label the bull/bear states since 1991. $35$ bear episodes.
 - Fit each state with GAS-SN. Two versions are provided.
+- The bear state appears to approach an LNN limit.
 - Used GAS-SN as the emission distribution to generate synthetic data.
 - Ran four models (Jump, KMeans++, Mixture-VAE, HMM) to label the synthetic data.
 - ML model accuracy is high. Jump stands out at $0.92$. HMM fails at $0.50$.
