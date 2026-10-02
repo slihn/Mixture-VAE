@@ -500,7 +500,7 @@ Let $V \sim \bar\chi_{\alpha,k}$. And let $\alpha \to 0$ and $|k| \to \infty$ wi
 Bear state's excess kurtosis $\kappa = 5.40$ and standardized peak density (SPD = $0.587$, but noisy) matches LNN's theoretical formula nicely:
 
 $$1 + \frac{\kappa}{3} = \left(\sqrt{2\pi}\thinspace\mathrm{SPD}\right)^{8/3}
-\qquad (\text{at} \thinspace T = 0.257 \approx 1/4)
+\qquad (\text{at} \thinspace \thinspace \thinspace T = 0.257 \approx 1/4)
 $$
 
 <small>(LNN: Clark (1973); Tauchen & Pitts (1983). Not in scipy. But it has a deep connection to this work.)</small>
