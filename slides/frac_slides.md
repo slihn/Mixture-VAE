@@ -416,25 +416,13 @@ Yuqi's Mixture-VAE code base: (Nie, Mulvey, Poor, Yu & Huang (2026))
 
 ---
 
-## Cluster distance — between the two states
-
-$$\text{cluster distance} = \frac{|\mathrm{median}_1 - \mathrm{median}_0|}{\mathrm{MAD}},$$
-
-$$\text{where} \quad \mathrm{MAD} = 1.4826\thinspace \mathrm{median}\big(|x - \mathrm{median}(x)|\big).$$
-
-A better measure of the separation between the two states. It is like the loc/sd, but built from medians — It always exists, and **fat tails cannot move it**. 
-
-Rationale: Inside Yuqi's code, $X$ is z-scored before building a feature, so **only the ratio reaches the model**.
-
----
-
 ## Global regime - Bull/bear states by the jump model
 
 Use the jump model to label the bull/bear states in the S&P500 daily return, $8{,}962$ days, $1991\text{–}2026$.
 
 <table class="layout"><tr><td width="34%">
 
-**Transition**
+**Transition Matrix**
 
 | | bull | bear |
 |---|---|---|
@@ -447,28 +435,47 @@ $\mathbf{35}$ **bear episodes** over $\mathbf{35}$ years
 
 </td><td width="66%">
 
-![w:640](assets/global_regime_history.png)
+![w:700](assets/global_regime_history.png)
 
 </td></tr></table>
 
+---
+
+## Global regime - How to initialize the GAS-SN fits
+
+<table class="layout"><tr><td width="34%">
+
+**Symmetric GAS-SN**
+
+The contour plot of the ex-kurtosis $\kappa$ vs std peak density (SPD) plane.
+
+* **all data** (SPX 1990-2026)
+* **bull data**: negative-*k*
+* **bear data**: near LNN
+
+The point determines the first $(\alpha, k)$.
+The thick dark line is **the LNN limit** as $k \to \infty$.
+
+</td><td width="66%">
+
+![w:740](assets/gsas_ex_kurt_vs_spd.png)
+
+</td></tr></table>
 
 ---
 
-## Global regime - GAS-SN fits
+## Global regime - GAS-SN fits of bull/bear states
 
-**Emission probability** — one GAS-SN per state. Two versions of the fit are used to demonstrate the **negative-*k*** branch:
+Use MLLK to fit the data sets:
 
-* positive-*k*: generalized $\alpha$-stable
-* negative-*k*: generalized exponential power (thinner tails)
+* **bull** in negative-*k*: generalized exponential power (thinner tails)
+* **bear** in positive-*k*: generalized $\alpha$-stable, large-k and low-alpha, numerically hard
 
-The difference in the bull state fit is more obvious. The negative-*k* fit matches the peak density to $+0.08$%, where the positive-*k* fit was $10.9$% low.
 
-| state | fit | $\alpha$ | $k$ | $\beta$ | scale | loc | sd | $\kappa$ |
-|---|---|---|---|---|---|---|---|---|
-| **bull** ($S=0$), $66.6$% | V1 | $0.703$ | $10.70$ | $0.053$ | $0.00984$ | $+0.00084$ | $0.00722$ | $1.86$ |
-| | **V2** | $0.89$ | $\mathbf{-3.23}$ | $0.045$ | $0.00536$ | $+0.00089$ | $0.00722$ | $1.86$ |
-| **bear** ($S=1$), $33.4$% | V1 | $0.704$ | $6.70$ | $0.033$ | $0.01984$ | $-0.00119$ | $0.01672$ | $5.40$ |
-| | **V2** | $0.50$ | $8.91$ | $0.031$ | $0.04556$ | $-0.00117$ | $0.01672$ | $5.41$ |
+| state | $\alpha$ | $k$ | $\beta$ | scale | loc | sd | $\kappa$ |
+|---|---|---|---|---|---|---|---|
+| **bull** ($S=0$), $66.6$% | $0.89$ | $\mathbf{-3.23}$ | $0.045$ | $0.00536$ | $+0.00089$ | $0.00722$ | $1.86$ |
+| **bear** ($S=1$), $33.4$% | $0.50$ | $8.91$ | $0.031$ | $0.04556$ | $-0.00117$ | $0.01672$ | $5.41$ |
 
 
 ---
@@ -479,22 +486,22 @@ The difference in the bull state fit is more obvious. The negative-*k* fit match
 
 Simulating from the fits reproduces the real series on share and scale — bear share $0.337$ vs $0.334$.
 
-<small>Pooled $\kappa$ is $8.42$ (V2) and $9.96$ (V1) vs $10.77$, but that gap is **finite-sample noise, not a defect of either fit**: the bear state's 4th moment rides on a handful of extreme draws, and one fit returns $\kappa$ anywhere from $4.1$ to $8.1$ across draws.</small>
+<small>Pooled $\kappa$ is $8.42$ vs data's $10.77$, but that gap is **finite-sample noise, not a defect of either fit**: the bear state's 4th moment rides on a handful of extreme draws, and one fit returns $\kappa$ anywhere from $4.1$ to $8.1$ across draws.</small>
 
 
 ---
 
-## Global regime - Bear state favors the low-alpha fit
+## Global regime - How was the LNN limit discovered (9/2026)
 
-The MLLK fit tends to favor lower $\alpha$ and higher $k$. So we study it more (this slide and next). 
+The MLLK fit of bear state tends to favor lower $\alpha$ and higher $k$. So we study it more (this slide and next). 
 
 **$c^{\ast}$** is the distance from the mean at which the fitted model's 4th moment, counted only inside $\pm c^{\ast}$, reaches the data's full $\mu_4/\sigma^4 = 8.40$ (excess $\kappa = 5.40$). Beyond $c^{\ast}$ is **the rest**: kurtosis that no observed day accounts for. The largest observed bear move is $0.1166$.
 
 | $\alpha$ | $k$ | MLLK | $c^{\ast}$ | $c^{\ast}$ in model sd | $\mu_4$ beyond $c^{\ast}$ | share of model $\mu_4$ | expected days beyond $c^{\ast}$ |
 |---|---|---|---|---|---|---|---|
-| $0.50$ (**V2**) | $8.91$ | $1.34291$ | $0.856$ | $51.2$ | $0.01$ | $0.1$% | $0.00$ (good) |
+| $0.50$ | $8.91$ | $1.34291$ | $0.856$ | $51.2$ | $0.01$ | $0.1$% | $0.00$ (good) |
 | $0.60$ | $7.22$ | $1.34212$ | $0.245$ | $14.7$ | $0.95$ | $10.1$% | $0.02$ | 
-| $0.70$ (~V1) | $6.06$ | $1.34200$ | $0.208$ | $12.5$ | $2.37$ | $22.0$% | $0.07$ (okay) |
+| $0.70$ | $6.06$ | $1.34200$ | $0.208$ | $12.5$ | $2.37$ | $22.0$% | $0.07$ (okay) |
 | $0.80$ | $5.17$ | $1.34189$ | $0.190$ | $11.3$ | $5.37$ | $39.0$% | $0.16$ | 
 | $0.95$ | $4.17$ | $1.34180$ | $0.176$ | $10.4$ | $50.66$ | $85.8$% | $0.36$ (bad) |
 
@@ -504,10 +511,12 @@ $c^{\ast}$ lies beyond every observed day at every $\alpha > 0.5$. As $\alpha$ r
 
 ## Global regime - Is the bear state a lognormal-normal distribution (LNN) ?
 
-Take a bold limiting jump. Let $\alpha \to 0$ and $|k| \to \infty$ with $T \approx 1/(\alpha |k|)$ fixed. And let $V \sim \bar\chi_{\alpha,k}$, then:
+Take a bold limiting jump. Let $\alpha \to 0$ and $|k| \to \infty$ with $T \approx 1/(\alpha |k|)$ fixed. Then
 
-* $V$ becomes a lognormal: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
-* Symmetric GAS-SN becomes an LNN: $X \sim Z \thinspace \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
+* $V \sim \bar\chi_{\alpha,k}$ becomes a lognormal: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
+* Symmetric GAS-SN $Z / V$ becomes an LNN: 
+
+$\qquad \qquad X \sim Z \thinspace \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
 
 ### Data evidence
 
@@ -519,6 +528,20 @@ $$
 
 <small>(LNN: Clark (1973); Tauchen & Pitts (1983). Not in scipy. But it has a deep connection to this work.)</small>
 
+
+---
+
+## Cluster distance — separation between the two states
+
+$$\text{cluster distance} = \frac{|\mathrm{median}_1 - \mathrm{median}_0|}{\mathrm{MAD}},$$
+
+$$\text{where} \quad \mathrm{MAD} = 1.4826\thinspace \mathrm{median}\big(|x - \mathrm{median}(x)|\big).$$
+
+A better measure of the separation between the two states. It is like the loc/sd, but built from medians — It always exists, and **fat tails cannot move it**. 
+
+Rationale: Inside Yuqi's code, $X$ is z-scored before building a feature, so **only the ratio reaches the model**.
+
+
 ---
 
 ## Global regime - model output
@@ -527,18 +550,17 @@ $$\textbf{Cluster distance is only } 0.254 \textbf{ MAD — yet Jump scores } 0.
 
 Feeding those emissions and that transition matrix through the same comparator, $T = 100{,}008$:
 
-| model | **V2** | V1 |
-|---|---|---|
-| **Jump** | $\mathbf{0.9246}$ | $0.9117$ |
-| Mixture-VAE | $0.8613$ | $0.8536$ |
-| KMeans++ | $0.8269$ | $0.8145$ |
-| Gaussian-HMM | $0.5000$ | $0.5006$ |
+| model | Accuracy |
+|---|---|
+| **Jump** | $\mathbf{0.9246}$ |
+| Mixture-VAE | $0.8613$ |
+| KMeans++ | $0.8269$ |
+| Gaussian-HMM | $0.5000$ |
 
 - All three ML models score very high.
 - **HMM fails outright** ($0.5000$, "model is not converging"), rather than merely trailing.
 - Jump ran at `jump_penalty` $=100$ to match the original notebook.
-- Emissions clipped at $\pm 20$ **sd**. So V1 and V2 are a controlled comparison.
-- V2 lifts all three working models by $\approx 0.01$, tracking its larger cluster distance ($0.254$ vs $0.246$).
+- Emissions clipped at $\pm 20$ **sd**. 
 
 
 ---
