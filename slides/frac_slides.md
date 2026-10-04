@@ -130,7 +130,7 @@ leading to
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v102
+### ![w:70](assets/tiger.svg) v103
 
 ---
 
@@ -516,19 +516,40 @@ $c^{\ast}$ lies beyond every observed day at every $\alpha > 0.5$. As $\alpha$ r
 Take a bold limiting jump. Let $\alpha \to 0$ and $|k| \to \infty$ with $T \approx 1/(\alpha |k|)$ fixed. Then
 
 * $V \sim \bar\chi_{\alpha,k}$ becomes a **lognormal**: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
-* Symmetric GAS-SN ($X = Z / V$) becomes an LNN: 
+* Symmetric GAS-SN ($X = Z / V$) becomes an $\text{LNN}(\sigma^2=T)$: 
 
-$\qquad \qquad X \sim Z \thinspace \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
+$\qquad \qquad X \sim Z \thinspace \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,\sigma^2=T)$.
 
 ### Data evidence
 
 Bear state's excess kurtosis $\kappa = 5.40$ and standardized peak density (SPD = $0.587$, but noisy) matches LNN's theoretical formula nicely:
 
 $$1 + \frac{\kappa}{3} = \left(\sqrt{2\pi}\thinspace\mathrm{SPD}\right)^{8/3}
-\qquad (\text{at} \thinspace \thinspace \thinspace T = 0.257 \approx 1/4)
+\qquad (\text{at} \thinspace \thinspace \thinspace \sigma \approx 1/2)
 $$
 
 <small>(LNN: Clark (1973); Tauchen & Pitts (1983). Ignored by scipy. But it has a deep connection to this work.)</small>
+
+
+---
+
+## Global regime - Fit the bear state with LNN
+
+<table class="layout"><tr><td width="34%">
+
+Use three methods to fit $\text{LNN}(\sigma^2)$:
+
+1. Reference is MLE: $\sigma = 0.457$
+2. MLE with some penalty to match $\kappa$: $\sigma = 0.506$
+3. Full penalty to match $\kappa$ at 5.40: $\sigma = 0.507$
+
+(2) and (3) are shown in Q-Q plots. They are straight lines. These are **good fits**. 
+
+</td><td width="66%">
+
+![w:740](assets/bear_state_lnn_fit.png)
+
+</td></tr></table>
 
 
 ---
