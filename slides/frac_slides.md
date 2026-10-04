@@ -130,7 +130,7 @@ leading to
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v97
+### ![w:70](assets/tiger.svg) v101
 
 ---
 
@@ -346,19 +346,21 @@ $$SN_d(0,\bar\Omega,\beta)/\chi_{\alpha,k}.$$
 
 Definition 12.1: Let $Z \sim SN(0,1,\beta)$ and $V \sim \chi_{\alpha,k}$. Then
 
-$$\boxed{\mskip5mu X = Z / V \mskip5mu \sim\mskip5mu L_{\alpha,k}(\beta)\mskip5mu }$$
+$$\boxed{\mskip5mu X = Z / V \mskip5mu \sim\mskip5mu L_{\alpha,k}(\beta)\mskip5mu , 
+\quad \alpha \in (0,2], k \in \mathbb{R}, \beta \in \mathbb{R} }$$
 
-$$L_{\alpha,k}(x;\beta) = 2\int_0^\infty \mathcal{N}(xs)\thinspace \Phi_{\mathcal N}(\beta x s)\thinspace \chi_{\alpha,k}(s)\thinspace s\thinspace ds$$
+$$\text{PDF:} \quad L_{\alpha,k}(x;\beta) = 2\int_0^\infty \mathcal{N}(xs)\thinspace \Phi_{\mathcal N}(\beta x s)\thinspace \chi_{\alpha,k}(s)\thinspace s\thinspace ds$$
 
-It is a **continuous Gaussian mixture** — one normal per value of the mixing variable $V$.
+It is a **continuous mixture** — one skew-normal per value of the mixing variable $V$.
 
-$\alpha$ and $k$ control the tail **independently** — that is the gain over Student-*t*. What it subsumes:
 
 | Limit | Reduces to |
 |---|---|
-| $\beta = 0$ |  The symmetric dist, called "GSaS", $L_{\alpha,k}$ |
-| $\alpha = 1$ | Azzalini's **skew-*t***: $T(\beta,k) = L_{1,k}(\beta)$ |
-| $\alpha \to 2$ or $k \to \infty$ | the normal distribution $\mathcal{N}(0,1)$ |
+| $k=1, \beta = 0$ |  Paul Levy's original symmetric $\alpha$-stable dist |
+| $\beta = 0$ |  The generalized symmetric $\alpha$-stable dist, called "GSaS", $L_{\alpha,k}$ |
+| $\alpha = 1, k > 0$ | Azzalini's **skew-*t***: $T(\beta,k) = L_{1,k}(\beta)$ |
+| $1/(\alpha \vert k \vert)$ fixed and $\vert k \vert \to \infty, \beta = 0$ | the lognormal-normal distribution (LNN) |
+| $\alpha \to 2$ or $\vert k \vert \to \infty, \beta = 0$ | the normal distribution $\mathcal{N}(0,1)$ |
 
 
 
@@ -447,7 +449,7 @@ $\mathbf{35}$ **bear episodes** over $\mathbf{35}$ years
 
 **Symmetric GAS-SN**
 
-The contour plot of the ex-kurtosis $\kappa$ vs std peak density (SPD) plane.
+The contour plot of the ex-kurtosis ($\kappa$) vs std peak density (SPD) plane.
 
 * **all data** (SPX 1990-2026)
 * **bull data**: negative-*k*
@@ -469,7 +471,7 @@ The thick dark line is **the LNN limit** as $k \to \infty$.
 Use MLLK to fit the data sets:
 
 * **bull** in negative-*k*: generalized exponential power (thinner tails)
-* **bear** in positive-*k*: generalized $\alpha$-stable, large-k and low-alpha, numerically hard
+* **bear** in positive-*k*: generalized $\alpha$-stable. The large-k and low-alpha region was numerically hard.
 
 
 | state | $\alpha$ | $k$ | $\beta$ | scale | loc | sd | $\kappa$ |
@@ -513,8 +515,8 @@ $c^{\ast}$ lies beyond every observed day at every $\alpha > 0.5$. As $\alpha$ r
 
 Take a bold limiting jump. Let $\alpha \to 0$ and $|k| \to \infty$ with $T \approx 1/(\alpha |k|)$ fixed. Then
 
-* $V \sim \bar\chi_{\alpha,k}$ becomes a lognormal: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
-* Symmetric GAS-SN $Z / V$ becomes an LNN: 
+* $V \sim \bar\chi_{\alpha,k}$ becomes a **lognormal**: $\log V - \mathbb{E}[\log V] \xrightarrow{d} N(0, T)$.
+* Symmetric GAS-SN ($X = Z / V$) becomes an LNN: 
 
 $\qquad \qquad X \sim Z \thinspace \exp(Y)$, where $Z \sim N(0,1)$, $Y \sim N(0,T)$.
 
@@ -526,7 +528,7 @@ $$1 + \frac{\kappa}{3} = \left(\sqrt{2\pi}\thinspace\mathrm{SPD}\right)^{8/3}
 \qquad (\text{at} \thinspace \thinspace \thinspace T = 0.257 \approx 1/4)
 $$
 
-<small>(LNN: Clark (1973); Tauchen & Pitts (1983). Not in scipy. But it has a deep connection to this work.)</small>
+<small>(LNN: Clark (1973); Tauchen & Pitts (1983). Ignored by scipy. But it has a deep connection to this work.)</small>
 
 
 ---
