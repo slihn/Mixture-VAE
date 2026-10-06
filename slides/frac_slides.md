@@ -130,7 +130,7 @@ leading to
 
 <span class="small">Source: *Fractional Distributions* (fracdist), Ch. 1.2, 6, 7, 12, 13<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v103
+### ![w:70](assets/tiger.svg) v104
 
 ---
 
@@ -548,6 +548,25 @@ Use three methods to fit $\text{LNN}(\sigma^2)$:
 </td><td width="66%">
 
 ![w:740](assets/bear_state_lnn_fit.png)
+
+</td></tr></table>
+
+
+---
+
+## Global regime - New GAS-SN fit of the SPX data (9/2026)
+
+<table class="layout"><tr><td width="34%">
+
+The SPX fit is very good at $\alpha = 0.15, k = 19.9$. Notice the very small $\alpha$.
+
+This fit was numerically impossible without the new log-inversion algorithm in PDF and CDF.
+
+(SPX daily returns from 1/1990 to mid-2025)
+
+</td><td width="66%">
+
+![w:640](assets/plot_spx_gas_sn.png)
 
 </td></tr></table>
 
