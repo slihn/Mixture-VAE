@@ -11,7 +11,7 @@ style: |
     background: #ffffff;
     color: #121212;
     font-family: Roboto, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 25px;
+    font-size: 22px;
     padding: 60px 60px 70px 60px;
     border-top: 10px solid #E77500;
   }
@@ -126,7 +126,7 @@ style: |
 
 <span class="small">Source: *Fractional Distributions* (fracdist)<br>Reference implementation: `github.com/slihn/(gas-impl, Mixture-VAE)`</span>
 
-### ![w:70](assets/tiger.svg) v108
+### ![w:70](assets/tiger.svg) v109
 
 ---
 
@@ -151,35 +151,33 @@ It is hard to find the distribution that describes the **shape and moments** pro
 
 Generalized $\alpha$-stable distribution (GAS)
 
-- It **fits financial data** well. Clipping is (almost) unnessary.
-- It can take **any ticker** with 10-20 years of history!
+- It **fits financial return data** well. Clipping is (almost) unnecessary.
+- It can take on **any ticker** with 10-20 years of history!
 - Its symmetric distribution (GSAS) has rich structures, akin to **Central Limit Theorem**
 - It has an elegant connection to the **tilted stable law** (Pitman-Yor, Devroye, James)
 
 Benchmarked the two-state result on Yuqi's regime-detection github project
 
-- Mixture-VAE, Jump, KMeans++, Gaussian-HMM
+- Mixture-VAE, Jump, KMeans++
 - Achieved high accurancy
 
 
 ---
 
-## THE distribution family for asset returns
+## GAS could be THE distribution family for asset returns
 
-This is a big claim !!!
-Its parameters have meanings in statistics.
+- This is a big claim !!! Will be explained in the next few slides with a focus on **GSAS**.
+- Its parameters have meanings in classic statistical distribution.
 
-### GSAS: symmetric
-- $\alpha$: stability index $(0,2]$
-- $k$: degrees of freedom
-  - $k \ge 1$:  generalizes $\alpha$-stable, Student's t
-  - $k \le -1$: generalizes exponential power
-- construction: GSAS $\sim N / V$ where $V$ is fractional chi $\bar\chi_{\alpha, k}$.
+### GSAS: symmetric, two shape parameters $(\alpha, k)$
+- GSAS is a normal mixture: $\sim N / V$ where $V$ is the fractional chi (FCM) $\bar\chi_{\alpha, k}$.
+- $\alpha$: stability index $(0,2]$, $k$: degrees of freedom $\in \mathbb{R}_{\ne 0}$, $\zeta=\operatorname{sign}(k)$
+- $V$ is a squared tilted stable law $T$: $V\ \overset d=\ \sigma^\zeta T_{\alpha/2,z/2}^{-\zeta/2}$
+  - $z = k-1$ when $k \ge 1$:  generalizes $\alpha$-stable, Student's t
+  - $z = |k|$ when $k \le 0$: generalizes exponential power
 
 ### GAS-SN: GSAS + skew
-- add $\beta$ from skew-normal $N \sim SN(\beta)$
-
-We focus on GSAS in this presentation.
+- add $\beta$ from skew-normal $N \sim SN(\beta)$, generalizes skew-t
 
 ---
 
@@ -187,7 +185,7 @@ We focus on GSAS in this presentation.
 
 ## GSAS version of CLT
 
-### Canonical coordinates
+### The canonical coordinates
 X-axis: excess kurtosis
 Y-axis: std peak density
 
@@ -195,6 +193,10 @@ Y-axis: std peak density
 - Normal at origin
 - Fits SPX, bull, bear
 - Fits GLD, DXY, TLT, BTC
+
+### Challenge
+- In the small $\alpha$, large $k$ region
+- Numerically harder
 
 </td><td width="60%">
 
@@ -212,11 +214,14 @@ Y-axis: std peak density
 
 - GLD, DXY, TLT, BTC
 - Step 1: $(v_1, v_2) \to (\alpha, k)$
-- Step 2: mean, sd
+- Step 2: fits mean, sd
 
 Then you can
 - add skewness (GAS-SN)
 - apply MLE
+
+### Why does it work so well?
+<small>It fits $\mathbb{E}[V^n]$ where $n = 1,-2,-4$</small>
 
 </td><td width="60%">
 
@@ -254,7 +259,7 @@ the LNN limit in 9/2026.</small>
 
 ---
 
-## The Lognormal-normal (LNN) limit
+## The lognormal-normal (LNN) limit
 
 Roughly speaking, let $k \to \pm\infty$ and $\alpha \to 0$ with $1/(\alpha |k|) \to \tau_{\mathrm{LN}}^2$ fixed.
 Then the FCM $V \sim \bar\chi_{\alpha, k}$ has a lognormal limit:
@@ -270,6 +275,25 @@ with $Z, W$ independent standard normals.
 
 **A natural coordinate system**: the LNN is the diagonal, with $k>0$ below and $k<0$ above it.
 The inverse degrees of freedom $\xi \approx 1/k$ is the signed distance from it: $\xi = 0$ is the LNN. 
+
+---
+
+## FCM's lognormal limit is a form of "tempered stable"
+
+Near the lognormal limit, the centered log FCM, 
+
+$$U = \log V - \mathbb E[\log V]$$ 
+
+is approximated by a centered tempered stable law, with jump-magnitude Lévy measure
+
+$$\nu_{U}(dr)=\delta \frac{e^{-\lambda r}}{r^(1+\alpha_{TS})} \thinspace dr, \quad r > 0$$
+
+where $\alpha_{TS} = 1$, $\delta = 1/\alpha - 1/2$ and $\lambda \approx |k| \gg 1$. Jump direction: $-|k|$.
+
+This is the so-called "Classic Tempered Stable" (CTS) distribution at index one.
+Tempered stable law is frequently used in financial models.
+
+(Massing 2024, Section 2.3) $\quad$ (Note: $\log V$ is additively infinitely divisible.)
 
 ---
 
@@ -461,31 +485,6 @@ It is a **continuous mixture** — one skew-normal per value of the mixing varia
 | $\alpha \to 2$ or $\vert k \vert \to \infty, \beta = 0$ | the normal distribution $\mathcal{N}(0,1)$ |
 
 
-
----
-
-## The full sampling chain in GAS-SN
-
-The python library is built according to the structure laid out above:
-
-```
-GAS_SN(alpha, k, beta, loc, scale).rvs(size)
-   └─ GAS_SN_Std._rvs:      z0 = SN_Std(beta)._rvs(size)      # selective sampling
-                            v  = fcm.rvs(size)                # the one-sided element
-                            return z0 / v                     # Definition 12.1
-
-        └─ fcm = frac_chi_mean(alpha, k)  ->  frac_gamma(alpha/2, sigma_ak, k-1, alpha)
-
-             └─ fractional_gamma_gen._rvs  ->  kanter_rvs     # Kanter's method in Devroye (2009)
-
-                  └─ get_tilted_stable3(alpha, beta=alpha*d/p, gamma=alpha/p)
-                       └─ TitledStable3.rvs:   exp( c*gamma*log(E) - gamma*log A_alpha(Q) )
-```
-
-The `rvs` generator is *not* the bottleneck in the benchmark anymore.
-
-- $X$: 100,008 GAS-SN draws in 0.06 s. Very fast.
-
 ---
 
 ## From variates to to synthetic regime data
@@ -541,29 +540,6 @@ $\mathbf{35}$ **bear episodes** over $\mathbf{35}$ years
 
 ---
 
-## Global regime - How to initialize the GAS-SN fits
-
-<table class="layout"><tr><td width="34%">
-
-**Symmetric GAS-SN**
-
-The contour plot of the ex-kurtosis ($\kappa$) vs std peak density (SPD) plane.
-
-* **all data** (SPX 1990-2026)
-* **bull data**: negative-*k*
-* **bear data**: near LNN
-
-The point determines the first $(\alpha, k)$.
-The thick dark line is **the LNN limit** as $k \to \infty$.
-
-</td><td width="66%">
-
-![w:740](assets/gsas_ex_kurt_vs_spd.png)
-
-</td></tr></table>
-
----
-
 ## Global regime - GAS-SN fits of bull/bear states
 
 Use MLLK to fit the data sets:
@@ -576,6 +552,9 @@ Use MLLK to fit the data sets:
 |---|---|---|---|---|---|---|---|
 | **bull** ($S=0$), $66.6$% | $0.89$ | $\mathbf{-3.23}$ | $0.045$ | $0.00536$ | $+0.00089$ | $0.00722$ | $1.86$ |
 | **bear** ($S=1$), $33.4$% | $0.50$ | $8.91$ | $0.031$ | $0.04556$ | $-0.00117$ | $0.01672$ | $5.41$ |
+
+<small>The bear fit was capped at $\alpha = 0.5$ since the kurtosis is fully matched.
+The MLE and moment-matching are not aligned.</small>
 
 
 ---
